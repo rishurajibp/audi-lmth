@@ -35,18 +35,21 @@ def categorize_urls(urls):
         if "media-cdn.classplusapp.com/drm/" in url or "cpvod.testbook" in url:
             new_url = f"https://dragoapi.vercel.app/video/{url}"
             videos.append((name, new_url))
+        elif "dragoapi.vercel" in url:
+            videos.append((name, url))
         elif "/master.mpd" in url:
             vid_id = url.split("/")[-2]
             new_url = f"https://player.muftukmall.site/?id={vid_id}"
             videos.append((name, new_url))
-        elif 'videos.classplusapp' in url or "tencdn.classplusapp" in url or "webvideos.classplusapp.com" in url or "media-cdn-alisg.classplusapp.com" in url or "videos.classplusapp" in url or "videos.classplusapp.com" in url or "media-cdn-a.classplusapp" in url or "media-cdn.classplusapp" in url or "alisg-cdn-a.classplusapp" in url:
-            url = requests.get(f'https://api.classplusapp.com/cams/uploader/video/jw-signed-url?url={url}', headers={'x-access-token': 'eyJjb3Vyc2VJZCI6IjQ1NjY4NyIsInR1dG9ySWQiOm51bGwsIm9yZ0lkIjo0ODA2MTksImNhdGVnb3J5SWQiOm51bGx9r'}).json()['url']
         elif "youtube.com/embed" in url or "youtu.be" in url or "youtube.com/watch" in url:
             yt_id = url.split("v=")[-1].split("&")[0] if "v=" in url else url.split("/")[-1]
             new_url = f"https://www.youtube.com/watch?v={yt_id}"
             videos.append((name, new_url))
         elif ".m3u8" in url:
             videos.append((name, url))
+        elif "pdf*" in url:
+            new_url = f"https://dragoapi.vercel.app/pdf/{url}"
+            pdfs.append((name, new_url))
         elif "pdf" in url:
             pdfs.append((name, url))
         else:
