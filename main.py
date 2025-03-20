@@ -1,5 +1,4 @@
 import os
-import requests
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from datetime import datetime
@@ -21,9 +20,12 @@ app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 # Function to check if a user is a member of the update channel
 async def is_user_member(user_id):
     try:
+        # Check if the user is a member of the channel
         member = await app.get_chat_member(UPDATE_CHANNEL_USERNAME, user_id)
+        # Return True if the user is a member, administrator, or creator
         return member.status in ["member", "administrator", "creator"]
     except Exception as e:
+        # If the user is not a member or an error occurs, return False
         print(f"Error checking membership: {e}")
         return False
 
@@ -44,16 +46,15 @@ def categorize_urls(urls):
     others = []
 
     for name, url in urls:
-        new_url = url
         if "media-cdn.classplusapp.com/drm/" in url or "cpvod.testbook" in url:
-            new_url = f"https://dragoapi.vercel.app/video/{url}"
-            videos.append((name, new_url))
+            url = f"https://dragoapi.vercel.app/video/{url}"
+            videos.append((name, url))
         elif "dragoapi.vercel" in url:
             videos.append((name, url))
         elif "/master.mpd" in url:
             vid_id = url.split("/")[-2]
-            new_url = f"https://player.muftukmall.site/?id={vid_id}"
-            videos.append((name, new_url))
+            url = f"https://player.muftukmall.site/?id={vid_id}"
+            videos.append((name, url))
         elif "youtube.com/embed" in url or "youtu.be" in url or "youtube.com/watch" in url:
             videos.append((name, url))  # Keep YouTube URLs unchanged
         elif (
@@ -72,39 +73,14 @@ def categorize_urls(urls):
         ):
             videos.append((name, url))
         elif "pdf*" in url:
-            new_url = f"https://dragoapi.vercel.app/pdf/{url}"
-            pdfs.append((name, new_url))
+            url = f"https://dragoapi.vercel.app/pdf/{url}"
+            pdfs.append((name, url))
         elif "pdf" in url:
             pdfs.append((name, url))
         else:
             others.append((name, url))
 
     return videos, pdfs, others
-
-# Function to get MIME type based on file extension
-def get_mime_type(url):
-    if ".m3u8" in url:
-        return "application/x-mpegURL"
-    elif ".mp4" in url:
-        return "video/mp4"
-    elif ".mkv" in url:
-        return "video/x-matroska"
-    elif ".webm" in url:
-        return "video/webm"
-    elif ".avi" in url:
-        return "video/x-msvideo"
-    elif ".mov" in url:
-        return "video/quicktime"
-    elif ".wmv" in url:
-        return "video/x-ms-wmv"
-    elif ".flv" in url:
-        return "video/x-flv"
-    elif ".mpeg" in url:
-        return "video/mpeg"
-    elif ".mpd" in url:
-        return "application/dash+xml"
-    else:
-        return "video/mp4"  # Default to mp4 if format is unknown
 
 # Function to generate HTML file with Video.js player, YouTube player, and download feature
 def generate_html(file_name, videos, pdfs, others):
@@ -381,6 +357,7 @@ async def start(client: Client, message: Message):
         )
         return
 
+    # If the user is a member, allow them to proceed
     await message.reply_text("𝐖𝐞𝐥𝐜𝐨𝐦𝐞! 𝐏𝐥𝐞𝐚𝐬𝐞 𝐮𝐩𝐥𝐨𝐚𝐝 𝐚 .𝐭𝐱𝐭 𝐟𝐢𝐥𝐞 𝐜𝐨𝐧𝐭𝐚𝐢𝐧𝐢𝐧𝐠 𝐔𝐑𝐋𝐬.")
 
 # Callback query handler for verifying channel join
@@ -388,21 +365,56 @@ async def start(client: Client, message: Message):
 async def verify_join(client, callback_query):
     user_id = callback_query.from_user.id
     if await is_user_member(user_id):
+        # If the user has joined, confirm and allow them to proceed
         await callback_query.answer("✅ You have joined the channel. You can now use the bot!")
         await callback_query.message.edit_text("✅ You have joined the channel. You can now use the bot!")
     else:
+        # If the user hasn't joined, show the join button again
+        join_button = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "🌟 Join Channel", url=f"https://t.me/{UPDATE_CHANNEL_USERNAME}"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "✅ Verify Join", callback_data="verify_join"
+                    )
+                ],
+            ]
+        )
         await callback_query.answer("❌ You have not joined the channel yet. Please join and try again.", show_alert=True)
+        await callback_query.message.edit_text(
+            "⚠️ **You must join our update channel to use this bot.**\n\n"
+            f"👉 Click the button below to join {UPDATE_CHANNEL_USERNAME} and then click **Verify Join**.",
+            reply_markup=join_button,
+        )
 
 # Message handler for file uploads
-@app.on_message(filters.document)
+@app.on_message(filters.document))
 async def handle_file(client: Client, message: Message):
     user_id = message.from_user.id
     if not await is_user_member(user_id):
+        # Send a message with an inline button to join the channel
+        join_button = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "🌟 Join Channel", url=f"https://t.me/{UPDATE_CHANNEL_USERNAME}"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "✅ Verify Join", callback_data="verify_join"
+                    )
+                ],
+            ]
+        )
         await message.reply_text(
             "⚠️ **You must join our update channel to use this bot.**\n\n"
-            f"👉 [Join {UPDATE_CHANNEL_USERNAME}](https://t.me/{UPDATE_CHANNEL_USERNAME})\n\n"
-            "After joining, try uploading the file again.",
-            disable_web_page_preview=True
+            f"👉 Click the button below to join {UPDATE_CHANNEL_USERNAME} and then click **Verify Join**.",
+            reply_markup=join_button,
         )
         return
 
