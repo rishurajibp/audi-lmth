@@ -12,8 +12,20 @@ BOT_TOKEN = "8013725761:AAGQyr32ibk7HQNqxv4FSD2ZrrSLOmzknlg"
 # Telegram channel where files will be forwarded
 CHANNEL_USERNAME = "engineerbabuxtfiles"  # Replace with your channel username
 
+# Your update channel that users must join
+UPDATE_CHANNEL_USERNAME = "Engineersbabuupdates"  # Replace with your update channel username
+
 # Initialize Pyrogram Client
 app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+
+# Function to check if a user is a member of the update channel
+async def is_user_member(user_id):
+    try:
+        member = await app.get_chat_member(UPDATE_CHANNEL_USERNAME, user_id)
+        return member.status in ["member", "administrator", "creator"]
+    except Exception as e:
+        print(f"Error checking membership: {e}")
+        return False
 
 # Function to extract names and URLs from the text file
 def extract_names_and_urls(file_content):
@@ -345,11 +357,31 @@ def generate_html(file_name, videos, pdfs, others):
 # Command handler for /start
 @app.on_message(filters.command("start"))
 async def start(client: Client, message: Message):
+    user_id = message.from_user.id
+    if not await is_user_member(user_id):
+        await message.reply_text(
+            "⚠️ **You must join our update channel to use this bot.**\n\n"
+            f"👉 [Join {UPDATE_CHANNEL_USERNAME}](https://t.me/{UPDATE_CHANNEL_USERNAME})\n\n"
+            "After joining, click /start again.",
+            disable_web_page_preview=True
+        )
+        return
+
     await message.reply_text("𝐖𝐞𝐥𝐜𝐨𝐦𝐞! 𝐏𝐥𝐞𝐚𝐬𝐞 𝐮𝐩𝐥𝐨𝐚𝐝 𝐚 .𝐭𝐱𝐭 𝐟𝐢𝐥𝐞 𝐜𝐨𝐧𝐭𝐚𝐢𝐧𝐢𝐧𝐠 𝐔𝐑𝐋𝐬.")
 
 # Message handler for file uploads
 @app.on_message(filters.document)
 async def handle_file(client: Client, message: Message):
+    user_id = message.from_user.id
+    if not await is_user_member(user_id):
+        await message.reply_text(
+            "⚠️ **You must join our update channel to use this bot.**\n\n"
+            f"👉 [Join {UPDATE_CHANNEL_USERNAME}](https://t.me/{UPDATE_CHANNEL_USERNAME})\n\n"
+            "After joining, try uploading the file again.",
+            disable_web_page_preview=True
+        )
+        return
+
     # Check if the file is a .txt file
     if not message.document.file_name.endswith(".txt"):
         await message.reply_text("Please upload a .txt file.")
