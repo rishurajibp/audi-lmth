@@ -1,7 +1,7 @@
 import os
 import requests
 from pyrogram import Client, filters
-from pyrogram.types import Message
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from datetime import datetime
 
 # Replace with your API ID, API Hash, and Bot Token
@@ -359,15 +359,39 @@ def generate_html(file_name, videos, pdfs, others):
 async def start(client: Client, message: Message):
     user_id = message.from_user.id
     if not await is_user_member(user_id):
+        # Send a message with an inline button to join the channel
+        join_button = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "🌟 Join Channel", url=f"https://t.me/{UPDATE_CHANNEL_USERNAME}"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "✅ Verify Join", callback_data="verify_join"
+                    )
+                ],
+            ]
+        )
         await message.reply_text(
             "⚠️ **You must join our update channel to use this bot.**\n\n"
-            f"👉 [Join {UPDATE_CHANNEL_USERNAME}](https://t.me/{UPDATE_CHANNEL_USERNAME})\n\n"
-            "After joining, click /start again.",
-            disable_web_page_preview=True
+            f"👉 Click the button below to join {UPDATE_CHANNEL_USERNAME} and then click **Verify Join**.",
+            reply_markup=join_button,
         )
         return
 
     await message.reply_text("𝐖𝐞𝐥𝐜𝐨𝐦𝐞! 𝐏𝐥𝐞𝐚𝐬𝐞 𝐮𝐩𝐥𝐨𝐚𝐝 𝐚 .𝐭𝐱𝐭 𝐟𝐢𝐥𝐞 𝐜𝐨𝐧𝐭𝐚𝐢𝐧𝐢𝐧𝐠 𝐔𝐑𝐋𝐬.")
+
+# Callback query handler for verifying channel join
+@app.on_callback_query(filters.regex("^verify_join$"))
+async def verify_join(client, callback_query):
+    user_id = callback_query.from_user.id
+    if await is_user_member(user_id):
+        await callback_query.answer("✅ You have joined the channel. You can now use the bot!")
+        await callback_query.message.edit_text("✅ You have joined the channel. You can now use the bot!")
+    else:
+        await callback_query.answer("❌ You have not joined the channel yet. Please join and try again.", show_alert=True)
 
 # Message handler for file uploads
 @app.on_message(filters.document)
