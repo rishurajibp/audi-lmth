@@ -39,6 +39,9 @@ def categorize_urls(urls):
         elif "classplusapp" in url:
             new_url = f"https://api.extractor.workers.dev/player?url={url}"
             videos.append((name, new_url))
+        elif ".zip" in url:
+            new_url = f"https://video.pablocoder.eu.org/appx-zip?url={url}"
+            videos.append((name, new_url))
         elif "dragoapi.vercel" in url:
             videos.append((name, url))
         elif "/master.mpd" in url:
