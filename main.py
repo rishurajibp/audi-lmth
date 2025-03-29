@@ -9,8 +9,8 @@ API_ID = "21705536"
 API_HASH = "c5bb241f6e3ecf33fe68a444e288de2d"
 BOT_TOKEN = "8013725761:AAGQyr32ibk7HQNqxv4FSD2ZrrSLOmzknlg"
 
-# Telegram channel where files will be forwarded
-CHANNEL_USERNAME = "https://t.me/+2axvrpItcBkyNzk1"  # Replace with your channel username
+# Telegram channel ID where files will be forwarded (private channel)
+CHANNEL_ID = -1002351323436  # Replace with your channel ID
 
 # Initialize Pyrogram Client
 app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
@@ -100,7 +100,7 @@ def get_mime_type(url):
     else:
         return "video/mp4"  # Default to mp4 if format is unknown
 
-# Function to generate HTML file with Video.js player, YouTube player, and download feature
+# Function to generate HTML file with loading screen
 def generate_html(file_name, videos, pdfs, others):
     file_name_without_extension = os.path.splitext(file_name)[0]
 
@@ -119,6 +119,66 @@ def generate_html(file_name, videos, pdfs, others):
     <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }}
+        
+        /* Loading Screen Styles */
+        .loading {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            text-align: center;
+        }}
+        
+        .loading p {{
+            font-size: 24px;
+            margin: 20px 0;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }}
+        
+        .loading .ai-scenario {{
+            font-size: 18px;
+            color: #a1a1a1;
+            margin-top: 10px;
+        }}
+        
+        .progress-bar {{
+            width: 80%;
+            max-width: 500px;
+            height: 30px;
+            background-color: #2c2c54;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }}
+        
+        .progress-bar-fill {{
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #00bfff);
+            width: 0%;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            transition: width 0.1s;
+        }}
+        
+        .hidden {{
+            display: none !important;
+        }}
+        
+        /* Main Content Styles */
         body {{ background: #f5f7fa; text-align: center; }}
         .header {{ background: linear-gradient(90deg, #007bff, #6610f2); color: white; padding: 15px; font-size: 24px; font-weight: bold; }}
         .subheading {{ font-size: 18px; margin-top: 10px; color: #555; font-weight: bold; }}
@@ -142,205 +202,264 @@ def generate_html(file_name, videos, pdfs, others):
         .download-button a {{ background: #007bff; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-weight: bold; }}
         .download-button a:hover {{ background: #0056b3; }}
         .datetime {{ margin-top: 10px; font-size: 18px; font-weight: bold; color: #2F4F4F; }}
+        
+        /* Main content container - initially hidden */
+        #content {{
+            display: none;
+        }}
     </style>
 </head>
 <body>
-    <div class="header">{file_name_without_extension}</div>
-    <div class="subheading">📥 𝐄𝐱𝐭𝐫𝐚𝐜𝐭𝐞𝐝 𝐁𝐲 : <a href="https://t.me/Engineersbabuhelpbot" target="_blank">𝕰𝖓𝖌𝖎𝖓𝖊𝖊𝖗𝖘 𝕭𝖆𝖇𝖚™</a></div><br>
-    <div class="datetime" id="datetime">📅 {datetime.now().strftime('%A %d %B, %Y | ⏰ %I:%M:%S %p')}</div><br>
-    <p>🔹𝐔𝐬𝐞 𝐓𝐡𝐢𝐬 𝐁𝐨𝐭 𝐟𝐨𝐫 𝐓𝐗𝐓 𝐭𝐨 𝐇𝐓𝐌𝐋 𝐟𝐢𝐥𝐞 𝐄𝐱𝐭𝐫𝐚𝐜𝐭𝐢𝐨𝐧 : <a href="https://t.me/htmldeveloperbot" target="_blank"> @𝐡𝐭𝐦𝐥𝐝𝐞𝐯𝐞𝐥𝐨𝐩𝐞𝐫𝐛𝐨𝐭 </a></p>
-
-    <div class="search-bar">
-        <input type="text" id="searchInput" placeholder="Search for videos, PDFs, or other resources..." oninput="filterContent()">
-    </div>
-
-    <div id="noResults" class="no-results">No results found.</div>
-
-    <div id="video-player">
-        <video id="engineer-babu-player" class="video-js vjs-default-skin" controls preload="auto" width="640" height="360">
-            <p class="vjs-no-js">
-                To view this video please enable JavaScript, and consider upgrading to a web browser that
-                <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
-            </p>
-        </video>
-        <div class="download-button">
-            <a id="download-link" href="#" download>Download Video</a>
+    <!-- Loading Screen -->
+    <div id="loading" class="loading">
+        <div class="progress-bar">
+            <div id="progress-bar-fill" class="progress-bar-fill">0%</div>
         </div>
-        <div style="text-align: center; margin-top: 10px; font-weight: bold; color: #007bff;">Engineer Babu Player</div>
+        <p><b>✩░▒▓▆▅▃▂▁𝐖𝐞𝐥𝐜𝐨𝐦𝐞 𝐓𝐨 𝐄𝐧𝐠𝐢𝐧𝐞𝐞𝐫'𝐬 𝐁𝐚𝐛𝐮 𝐁𝐨𝐭▁▂▃▅▆▓▒░✩</b></p>
+        <p class="ai-scenario">𝐈𝐧𝐢𝐭𝐢𝐚𝐥𝐢𝐳𝐢𝐧𝐠 𝐭𝐨 𝐇𝐓𝐌𝐋 𝐕𝐢𝐞𝐰𝐞𝐫...</p>
     </div>
+    
+    <!-- Main Content (initially hidden) -->
+    <div id="content">
+        <div class="header">{file_name_without_extension}</div>
+        <div class="subheading">📥 𝐄𝐱𝐭𝐫𝐚𝐜𝐭𝐞𝐝 𝐁𝐲 : <a href="https://t.me/Engineersbabuhelpbot" target="_blank">𝕰𝖓𝖌𝖎𝖓𝖊𝖊𝖗𝖘 𝕭𝖆𝖇𝖚™</a></div><br>
+        <div class="datetime" id="datetime">📅 {datetime.now().strftime('%A %d %B, %Y | ⏰ %I:%M:%S %p')}</div><br>
+        <p>🔹𝐔𝐬𝐞 𝐓𝐡𝐢𝐬 𝐁𝐨𝐭 𝐟𝐨𝐫 𝐓𝐗𝐓 𝐭𝐨 𝐇𝐓𝐌𝐋 𝐟𝐢𝐥𝐞 𝐄𝐱𝐭𝐫𝐚𝐜𝐭𝐢𝐨𝐧 : <a href="https://t.me/htmldeveloperbot" target="_blank"> @𝐡𝐭𝐦𝐥𝐝𝐞𝐯𝐞𝐥𝐨𝐩𝐞𝐫𝐛𝐨𝐭 </a></p>
 
-    <div id="youtube-player">
-        <div id="player"></div>
-        <div style="text-align: center; margin-top: 10px; font-weight: bold; color: #007bff;">Engineer Babu Player</div>
-    </div>
-
-    <div class="container">
-        <div class="tab" onclick="showContent('videos')">Videos</div>
-        <div class="tab" onclick="showContent('pdfs')">PDFs</div>
-        <div class="tab" onclick="showContent('others')">Others</div>
-    </div>
-
-    <div id="videos" class="content">
-        <h2>All Video Lectures</h2>
-        <div class="video-list">
-            {video_links}
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="Search for videos, PDFs, or other resources..." oninput="filterContent()">
         </div>
-    </div>
 
-    <div id="pdfs" class="content">
-        <h2>All PDFs</h2>
-        <div class="pdf-list">
-            {pdf_links}
+        <div id="noResults" class="no-results">No results found.</div>
+
+        <div id="video-player">
+            <video id="engineer-babu-player" class="video-js vjs-default-skin" controls preload="auto" width="640" height="360">
+                <p class="vjs-no-js">
+                    To view this video please enable JavaScript, and consider upgrading to a web browser that
+                    <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+                </p>
+            </video>
+            <div class="download-button">
+                <a id="download-link" href="#" download>Download Video</a>
+            </div>
+            <div style="text-align: center; margin-top: 10px; font-weight: bold; color: #007bff;">Engineer Babu Player</div>
         </div>
-    </div>
 
-    <div id="others" class="content">
-        <h2>Other Resources</h2>
-        <div class="other-list">
-            {other_links}
+        <div id="youtube-player">
+            <div id="player"></div>
+            <div style="text-align: center; margin-top: 10px; font-weight: bold; color: #007bff;">Engineer Babu Player</div>
         </div>
-    </div>
 
-    <div class="footer">Extracted By - <a href="https://t.me/Engineers_Babu" target="_blank">Engineer Babu</a></div>
+        <div class="container">
+            <div class="tab" onclick="showContent('videos')">Videos</div>
+            <div class="tab" onclick="showContent('pdfs')">PDFs</div>
+            <div class="tab" onclick="showContent('others')">Others</div>
+        </div>
+
+        <div id="videos" class="content">
+            <h2>All Video Lectures</h2>
+            <div class="video-list">
+                {video_links}
+            </div>
+        </div>
+
+        <div id="pdfs" class="content">
+            <h2>All PDFs</h2>
+            <div class="pdf-list">
+                {pdf_links}
+            </div>
+        </div>
+
+        <div id="others" class="content">
+            <h2>Other Resources</h2>
+            <div class="other-list">
+                {other_links}
+            </div>
+        </div>
+
+        <div class="footer">Extracted By - <a href="https://t.me/Engineers_Babu" target="_blank">Engineer Babu</a></div>
+    </div>
 
     <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
-        const player = videojs('engineer-babu-player', {{
-            controls: true,
-            autoplay: true,
-            preload: 'auto',
-            fluid: true,
-        }});
-
-        let youtubePlayer;
-
-        function onYouTubeIframeAPIReady() {{
-            youtubePlayer = new YT.Player('player', {{
-                height: '360',
-                width: '640',
-                events: {{
-                    'onReady': onPlayerReady,
-                }}
-            }});
-        }}
-
-        function onPlayerReady(event) {{
-            // You can add additional functionality here if needed
-        }}
-
-        function playVideo(url) {{
-            if (
-                url.includes('.m3u8') ||
-                url.includes('.mp4') ||
-                url.includes('.mkv') ||
-                url.includes('.webm') ||
-                url.includes('.MP4') ||
-                url.includes('.AVI') ||
-                url.includes('.MOV') ||
-                url.includes('.WMV') ||
-                url.includes('.MKV') ||
-                url.includes('.FLV') ||
-                url.includes('.MPEG') ||
-                url.includes('.mpd')
-            ) {{
-                document.getElementById('video-player').style.display = 'block';
-                document.getElementById('youtube-player').style.display = 'none';
-                const mimeType = getMimeType(url);
-                player.src({{ src: url, type: mimeType }});
-                player.play().catch(() => {{
-                    window.open(url, '_blank');
-                }});
-                document.getElementById('download-link').href = url;
-            }} else if (url.includes('youtube.com') || url.includes('youtu.be')) {{
-                document.getElementById('video-player').style.display = 'none';
-                document.getElementById('youtube-player').style.display = 'block';
-                youtubePlayer.loadVideoByUrl(url);  // Directly load the YouTube URL
-            }} else {{
-                window.open(url, '_blank');
-            }}
-        }}
-
-        function getMimeType(url) {{
-            if (url.includes('.m3u8')) {{
-                return 'application/x-mpegURL';
-            }} else if (url.includes('.mp4')) {{
-                return 'video/mp4';
-            }} else if (url.includes('.mkv')) {{
-                return 'video/x-matroska';
-            }} else if (url.includes('.webm')) {{
-                return 'video/webm';
-            }} else if (url.includes('.avi')) {{
-                return 'video/x-msvideo';
-            }} else if (url.includes('.mov')) {{
-                return 'video/quicktime';
-            }} else if (url.includes('.wmv')) {{
-                return 'video/x-ms-wmv';
-            }} else if (url.includes('.flv')) {{
-                return 'video/x-flv';
-            }} else if (url.includes('.mpeg')) {{
-                return 'video/mpeg';
-            }} else if (url.includes('.mpd')) {{
-                return 'application/dash+xml';
-            }} else {{
-                return 'video/mp4';  // Default to mp4 if format is unknown
-            }}
-        }}
-
-        function showContent(tabName) {{
-            const contents = document.querySelectorAll('.content');
-            contents.forEach(content => {{
-                content.style.display = 'none';
-            }});
-            const selectedContent = document.getElementById(tabName);
-            if (selectedContent) {{
-                selectedContent.style.display = 'block';
-            }}
-            filterContent();
-        }}
-
-        function filterContent() {{
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const categories = ['videos', 'pdfs', 'others'];
-            let hasResults = false;
-
-            categories.forEach(category => {{
-                const items = document.querySelectorAll(`#${{category}} .${{category}}-list a`);
-                let categoryHasResults = false;
-
-                items.forEach(item => {{
-                    const itemText = item.textContent.toLowerCase();
-                    if (itemText.includes(searchTerm)) {{
-                        item.style.display = 'block';
-                        categoryHasResults = true;
-                        hasResults = true;
+        // Loading screen functionality
+        function updateProgressBar() {{
+            var progressBar = document.getElementById('progress-bar-fill');
+            var width = 0;
+            var interval = setInterval(function() {{
+                if (width >= 100) {{
+                    clearInterval(interval);
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('content').style.display = 'block';
+                    // Initialize the rest of the page functionality
+                    initializePage();
+                }} else {{
+                    width++;
+                    progressBar.style.width = width + '%';
+                    progressBar.innerHTML = width + '%';
+                    
+                    // Update loading text based on progress
+                    if (width < 30) {{
+                        document.querySelector('.ai-scenario').textContent = "𝐈𝐧𝐢𝐭𝐢𝐚𝐥𝐢𝐳𝐢𝐧𝐠 𝐭𝐨 𝐇𝐓𝐌𝐋 𝐕𝐢𝐞𝐰𝐞𝐫...";
+                    }} else if (width < 60) {{
+                        document.querySelector('.ai-scenario').textContent = "𝐋𝐨𝐚𝐝𝐢𝐧𝐠 𝐕𝐢𝐝𝐞𝐨 𝐏𝐥𝐚𝐲𝐞𝐫 𝐂𝐨𝐦𝐩𝐨𝐧𝐞𝐧𝐭𝐬...";
+                    }} else if (width < 90) {{
+                        document.querySelector('.ai-scenario').textContent = "𝐏𝐫𝐞𝐩𝐚𝐫𝐢𝐧𝐠 𝐘𝐨𝐮𝐫 𝐂𝐨𝐧𝐭𝐞𝐧𝐭...";
                     }} else {{
-                        item.style.display = 'none';
+                        document.querySelector('.ai-scenario').textContent = "𝐀𝐥𝐦𝐨𝐬𝐭 𝐑𝐞𝐚𝐝𝐲...";
+                    }}
+                }}
+            }}, 30);
+        }}
+        
+        // Initialize the rest of the page
+        function initializePage() {{
+            const player = videojs('engineer-babu-player', {{
+                controls: true,
+                autoplay: true,
+                preload: 'auto',
+                fluid: true,
+            }});
+
+            let youtubePlayer;
+
+            function onYouTubeIframeAPIReady() {{
+                youtubePlayer = new YT.Player('player', {{
+                    height: '360',
+                    width: '640',
+                    events: {{
+                        'onReady': onPlayerReady,
+                    }}
+                }});
+            }}
+
+            function onPlayerReady(event) {{
+                // You can add additional functionality here if needed
+            }}
+
+            function playVideo(url) {{
+                if (
+                    url.includes('.m3u8') ||
+                    url.includes('.mp4') ||
+                    url.includes('.mkv') ||
+                    url.includes('.webm') ||
+                    url.includes('.MP4') ||
+                    url.includes('.AVI') ||
+                    url.includes('.MOV') ||
+                    url.includes('.WMV') ||
+                    url.includes('.MKV') ||
+                    url.includes('.FLV') ||
+                    url.includes('.MPEG') ||
+                    url.includes('.mpd')
+                ) {{
+                    document.getElementById('video-player').style.display = 'block';
+                    document.getElementById('youtube-player').style.display = 'none';
+                    const mimeType = getMimeType(url);
+                    player.src({{ src: url, type: mimeType }});
+                    player.play().catch(() => {{
+                        window.open(url, '_blank');
+                    }});
+                    document.getElementById('download-link').href = url;
+                }} else if (url.includes('youtube.com') || url.includes('youtu.be')) {{
+                    document.getElementById('video-player').style.display = 'none';
+                    document.getElementById('youtube-player').style.display = 'block';
+                    youtubePlayer.loadVideoByUrl(url);  // Directly load the YouTube URL
+                }} else {{
+                    window.open(url, '_blank');
+                }}
+            }}
+
+            function getMimeType(url) {{
+                if (url.includes('.m3u8')) {{
+                    return 'application/x-mpegURL';
+                }} else if (url.includes('.mp4')) {{
+                    return 'video/mp4';
+                }} else if (url.includes('.mkv')) {{
+                    return 'video/x-matroska';
+                }} else if (url.includes('.webm')) {{
+                    return 'video/webm';
+                }} else if (url.includes('.avi')) {{
+                    return 'video/x-msvideo';
+                }} else if (url.includes('.mov')) {{
+                    return 'video/quicktime';
+                }} else if (url.includes('.wmv')) {{
+                    return 'video/x-ms-wmv';
+                }} else if (url.includes('.flv')) {{
+                    return 'video/x-flv';
+                }} else if (url.includes('.mpeg')) {{
+                    return 'video/mpeg';
+                }} else if (url.includes('.mpd')) {{
+                    return 'application/dash+xml';
+                }} else {{
+                    return 'video/mp4';  // Default to mp4 if format is unknown
+                }}
+            }}
+
+            function showContent(tabName) {{
+                const contents = document.querySelectorAll('.content');
+                contents.forEach(content => {{
+                    content.style.display = 'none';
+                }});
+                const selectedContent = document.getElementById(tabName);
+                if (selectedContent) {{
+                    selectedContent.style.display = 'block';
+                }}
+                filterContent();
+            }}
+
+            function filterContent() {{
+                const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+                const categories = ['videos', 'pdfs', 'others'];
+                let hasResults = false;
+
+                categories.forEach(category => {{
+                    const items = document.querySelectorAll(`#${{category}} .${{category}}-list a`);
+                    let categoryHasResults = false;
+
+                    items.forEach(item => {{
+                        const itemText = item.textContent.toLowerCase();
+                        if (itemText.includes(searchTerm)) {{
+                            item.style.display = 'block';
+                            categoryHasResults = true;
+                            hasResults = true;
+                        }} else {{
+                            item.style.display = 'none';
+                        }}
+                    }});
+
+                    const categoryHeading = document.querySelector(`#${{category}} h2`);
+                    if (categoryHeading) {{
+                        categoryHeading.style.display = categoryHasResults ? 'block' : 'none';
                     }}
                 }});
 
-                const categoryHeading = document.querySelector(`#${{category}} h2`);
-                if (categoryHeading) {{
-                    categoryHeading.style.display = categoryHasResults ? 'block' : 'none';
+                const noResultsMessage = document.getElementById('noResults');
+                if (noResultsMessage) {{
+                    noResultsMessage.style.display = hasResults ? 'none' : 'block';
                 }}
-            }});
-
-            const noResultsMessage = document.getElementById('noResults');
-            if (noResultsMessage) {{
-                noResultsMessage.style.display = hasResults ? 'none' : 'block';
             }}
-        }}
 
-        function updateDateTime() {{
-            const now = new Date();
-            const options = {{ weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }};
-            const formattedDateTime = now.toLocaleDateString('en-US', options);
-            document.getElementById('datetime').innerText = `📅 ${{formattedDateTime}}`;
-        }}
+            function updateDateTime() {{
+                const now = new Date();
+                const options = {{ weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }};
+                const formattedDateTime = now.toLocaleDateString('en-US', options);
+                document.getElementById('datetime').innerText = `📅 ${{formattedDateTime}}`;
+            }}
 
-        document.addEventListener('DOMContentLoaded', () => {{
+            // Show videos tab by default
             showContent('videos');
+            
+            // Start updating datetime
             setInterval(updateDateTime, 1000);
+            
+            // Initialize YouTube API
+            onYouTubeIframeAPIReady();
+        }}
+        
+        // Start the loading process when page loads
+        document.addEventListener('DOMContentLoaded', function() {{
+            updateProgressBar();
         }});
     </script>
 </body>
@@ -395,9 +514,9 @@ async def handle_file(client: Client, message: Message):
         caption=f"🎞️ 𝐕𝐢𝐝𝐞𝐨𝐬 : {total_videos}, 📚 𝐏𝐝𝐟𝐬 : {total_pdfs}, 💾 𝐎𝐭𝐡𝐞𝐫𝐬 : {total_others}\n\n✅ 𝐒𝐮𝐜𝐜𝐞𝐬𝐬𝐟𝐮𝐥𝐥𝐲 𝐃𝐨𝐧𝐞!\n\n📥 𝐄𝐱𝐭𝐫𝐚𝐜𝐭𝐞𝐝 𝐁𝐲 : 𝕰𝖓𝖌𝖎𝖓𝖊𝖊𝖗𝖘 𝕭𝖆𝖇𝖚™"
     )
 
-    # Forward the .txt file to the channel
+    # Forward the .txt file to the private channel using its ID
     await client.send_document(
-        chat_id=CHANNEL_USERNAME,
+        chat_id=CHANNEL_ID,
         document=file_path,
         caption=f"📥 User: @{user_identifier} "
     )
