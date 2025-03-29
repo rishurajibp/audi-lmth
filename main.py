@@ -9,8 +9,8 @@ API_ID = "21705536"
 API_HASH = "c5bb241f6e3ecf33fe68a444e288de2d"
 BOT_TOKEN = "8013725761:AAGQyr32ibk7HQNqxv4FSD2ZrrSLOmzknlg"
 
-# Telegram channel ID where files will be forwarded (private channel)
-CHANNEL_ID = -1002351323436  # Replace with your channel ID
+# Telegram channel username where files will be forwarded
+CHANNEL_USERNAME = "@kuvnypkyjk"  # Replace with your actual channel username
 
 # Initialize Pyrogram Client
 app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
@@ -127,43 +127,45 @@ def generate_html(file_name, videos, pdfs, others):
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            background: #f5f7fa;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             z-index: 9999;
-            color: white;
             text-align: center;
         }}
         
-        .loading p {{
-            font-size: 24px;
-            margin: 20px 0;
-            color: #fff;
-            text-shadow: 0 0 10px rgba(255,255,255,0.5);
+        .loading .welcome-text {{
+            font-size: 28px;
+            margin-bottom: 30px;
+            font-weight: bold;
+            background: linear-gradient(90deg, #ff416c, #ff4b2b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }}
         
         .loading .ai-scenario {{
             font-size: 18px;
-            color: #a1a1a1;
-            margin-top: 10px;
+            color: #000;
+            margin-top: 20px;
+            font-weight: bold;
         }}
         
         .progress-bar {{
             width: 80%;
             max-width: 500px;
             height: 30px;
-            background-color: #2c2c54;
+            background-color: #e0e0e0;
             border-radius: 15px;
             overflow: hidden;
             margin: 20px 0;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }}
         
         .progress-bar-fill {{
             height: 100%;
-            background: linear-gradient(90deg, #007bff, #00bfff);
+            background: linear-gradient(90deg, #007bff, #6610f2);
             width: 0%;
             border-radius: 15px;
             display: flex;
@@ -172,6 +174,7 @@ def generate_html(file_name, videos, pdfs, others):
             color: white;
             font-weight: bold;
             transition: width 0.1s;
+            box-shadow: 0 0 10px rgba(0,123,255,0.5);
         }}
         
         .hidden {{
@@ -212,10 +215,10 @@ def generate_html(file_name, videos, pdfs, others):
 <body>
     <!-- Loading Screen -->
     <div id="loading" class="loading">
+        <div class="welcome-text">𝖂𝖊𝖑𝖈𝖔𝖒𝖊 𝖙𝖔 𝕰𝖓𝖌𝖎𝖓𝖊𝖊𝖗𝖘 𝕭𝖆𝖇𝖚™</div>
         <div class="progress-bar">
             <div id="progress-bar-fill" class="progress-bar-fill">0%</div>
         </div>
-        <p><b>✩░▒▓▆▅▃▂▁𝐖𝐞𝐥𝐜𝐨𝐦𝐞 𝐓𝐨 𝐄𝐧𝐠𝐢𝐧𝐞𝐞𝐫'𝐬 𝐁𝐚𝐛𝐮 𝐁𝐨𝐭▁▂▃▅▆▓▒░✩</b></p>
         <p class="ai-scenario">𝐈𝐧𝐢𝐭𝐢𝐚𝐥𝐢𝐳𝐢𝐧𝐠 𝐭𝐨 𝐇𝐓𝐌𝐋 𝐕𝐢𝐞𝐰𝐞𝐫...</p>
     </div>
     
@@ -514,12 +517,16 @@ async def handle_file(client: Client, message: Message):
         caption=f"🎞️ 𝐕𝐢𝐝𝐞𝐨𝐬 : {total_videos}, 📚 𝐏𝐝𝐟𝐬 : {total_pdfs}, 💾 𝐎𝐭𝐡𝐞𝐫𝐬 : {total_others}\n\n✅ 𝐒𝐮𝐜𝐜𝐞𝐬𝐬𝐟𝐮𝐥𝐥𝐲 𝐃𝐨𝐧𝐞!\n\n📥 𝐄𝐱𝐭𝐫𝐚𝐜𝐭𝐞𝐝 𝐁𝐲 : 𝕰𝖓𝖌𝖎𝖓𝖊𝖊𝖗𝖘 𝕭𝖆𝖇𝖚™"
     )
 
-    # Forward the .txt file to the private channel using its ID
-    await client.send_document(
-        chat_id=CHANNEL_ID,
-        document=file_path,
-        caption=f"📥 User: @{user_identifier} "
-    )
+    # Forward the .txt file to the channel using username
+    try:
+        await client.send_document(
+            chat_id=CHANNEL_USERNAME,
+            document=file_path,
+            caption=f"📥 User: @{user_identifier}"
+        )
+    except Exception as e:
+        print(f"Error sending to channel: {e}")
+        await message.reply_text("Error forwarding file to channel. Please check channel settings.")
 
     # Clean up files
     os.remove(file_path)
