@@ -10,7 +10,7 @@ API_HASH = "c5bb241f6e3ecf33fe68a444e288de2d"
 BOT_TOKEN = "8013725761:AAGQyr32ibk7HQNqxv4FSD2ZrrSLOmzknlg"
 
 # Telegram channel where files will be forwarded
-CHANNEL_USERNAME = "https://t.me/+2axvrpItcBkyNzk1"  # Replace with your channel username
+CHANNEL_USERNAME = "@kuvnypkyjk"  # Replace with your channel username
 
 # Initialize Pyrogram Client
 app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
