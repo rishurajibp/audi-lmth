@@ -127,7 +127,7 @@ def generate_html(file_name, videos, pdfs, others):
         .tab {{ flex: 1; padding: 20px; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); cursor: pointer; transition: 0.3s; border-radius: 10px; font-size: 20px; font-weight: bold; }}
         .tab:hover {{ background: #007bff; color: white; }}
         .content {{ display: none; margin-top: 20px; }}
-        .active {{ display: block; }}
+        .content.active {{ display: block; }}
         .footer {{ margin-top: 30px; font-size: 18px; font-weight: bold; padding: 15px; background: #1c1c1c; color: white; border-radius: 10px; }}
         .footer a {{ color: #ffeb3b; text-decoration: none; font-weight: bold; }}
         .video-list, .pdf-list, .other-list {{ text-align: left; max-width: 600px; margin: auto; }}
@@ -180,7 +180,7 @@ def generate_html(file_name, videos, pdfs, others):
         <div class="tab" onclick="showContent('others')">Others</div>
     </div>
 
-    <div id="videos" class="content">
+    <div id="videos" class="content active">
         <h2>All Video Lectures</h2>
         <div class="video-list">
             {video_links}
@@ -290,10 +290,12 @@ def generate_html(file_name, videos, pdfs, others):
         function showContent(tabName) {{
             const contents = document.querySelectorAll('.content');
             contents.forEach(content => {{
+                content.classList.remove('active');
                 content.style.display = 'none';
             }});
             const selectedContent = document.getElementById(tabName);
             if (selectedContent) {{
+                selectedContent.classList.add('active');
                 selectedContent.style.display = 'block';
             }}
             filterContent();
@@ -301,30 +303,46 @@ def generate_html(file_name, videos, pdfs, others):
 
         function filterContent() {{
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const categories = ['videos', 'pdfs', 'others'];
+            const activeTab = document.querySelector('.content.active') || document.getElementById('videos');
+            const activeTabId = activeTab.id;
             let hasResults = false;
 
-            categories.forEach(category => {{
-                const items = document.querySelectorAll(`#${{category}} .${{category}}-list a`);
-                let categoryHasResults = false;
+            // Get the appropriate list based on active tab
+            let items;
+            if (activeTabId === 'videos') {{
+                items = document.querySelectorAll('#videos .video-list a');
+            }} else if (activeTabId === 'pdfs') {{
+                items = document.querySelectorAll('#pdfs .pdf-list a');
+            }} else if (activeTabId === 'others') {{
+                items = document.querySelectorAll('#others .other-list a');
+            }}
 
+            // Filter items in the active tab
+            if (items) {{
                 items.forEach(item => {{
-                    const itemText = item.textContent.toLowerCase();
+                    // Extract the display text differently based on tab
+                    let itemText;
+                    if (activeTabId === 'videos') {{
+                        // For videos, use the link text which is the name
+                        itemText = item.textContent.toLowerCase();
+                    }} else if (activeTabId === 'pdfs') {{
+                        // For PDFs, use the text before the download icon
+                        itemText = item.textContent.split('📥')[0].toLowerCase().trim();
+                    }} else {{
+                        // For others, use the full text
+                        itemText = item.textContent.toLowerCase();
+                    }}
+
                     if (itemText.includes(searchTerm)) {{
                         item.style.display = 'block';
-                        categoryHasResults = true;
                         hasResults = true;
                     }} else {{
                         item.style.display = 'none';
                     }}
                 }});
+            }}
 
-                const categoryHeading = document.querySelector(`#${{category}} h2`);
-                if (categoryHeading) {{
-                    categoryHeading.style.display = categoryHasResults ? 'block' : 'none';
-                }}
-            }});
-
+            // Show/hide no results message
             const noResultsMessage = document.getElementById('noResults');
             if (noResultsMessage) {{
                 noResultsMessage.style.display = hasResults ? 'none' : 'block';
