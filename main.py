@@ -4,18 +4,15 @@ from pyrogram import Client, filters
 from pyrogram.types import Message
 from datetime import datetime
 
-# Replace with your API ID, API Hash, and Bot Token
+# Bot configuration
 API_ID = "21705536"
 API_HASH = "c5bb241f6e3ecf33fe68a444e288de2d"
 BOT_TOKEN = "8013725761:AAGQyr32ibk7HQNqxv4FSD2ZrrSLOmzknlg"
+CHANNEL_USERNAME = "@kuvnypkyjk"
+DEFAULT_THUMBNAIL = "https://i.postimg.cc/4N69wBLt/hat-hacker.webp"  # Default thumbnail URL
 
-# Telegram channel where files will be forwarded
-CHANNEL_USERNAME = "@kuvnypkyjk"  # Replace with your channel username
-
-# Initialize Pyrogram Client
 app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-# Function to extract names and URLs from the text file
 def extract_names_and_urls(file_content):
     lines = file_content.strip().split("\n")
     data = []
@@ -25,7 +22,6 @@ def extract_names_and_urls(file_content):
             data.append((name.strip(), url.strip()))
     return data
 
-# Function to categorize URLs
 def categorize_urls(urls):
     videos = []
     pdfs = []
@@ -49,20 +45,11 @@ def categorize_urls(urls):
             new_url = f"https://player.muftukmall.site/?id={vid_id}"
             videos.append((name, new_url))
         elif "youtube.com/embed" in url or "youtu.be" in url or "youtube.com/watch" in url:
-            videos.append((name, url))  # Keep YouTube URLs unchanged
+            videos.append((name, url))
         elif (
-            ".m3u8" in url
-            or ".mp4" in url
-            or ".mkv" in url
-            or ".webm" in url
-            or ".MP4" in url
-            or ".AVI" in url
-            or ".MOV" in url
-            or ".WMV" in url
-            or ".MKV" in url
-            or ".FLV" in url
-            or ".MPEG" in url
-            or ".mpd" in url
+            ".m3u8" in url or ".mp4" in url or ".mkv" in url or ".webm" in url or
+            ".MP4" in url or ".AVI" in url or ".MOV" in url or ".WMV" in url or
+            ".MKV" in url or ".FLV" in url or ".MPEG" in url or ".mpd" in url
         ):
             videos.append((name, url))
         elif "pdf*" in url:
@@ -75,32 +62,6 @@ def categorize_urls(urls):
 
     return videos, pdfs, others
 
-# Function to get MIME type based on file extension
-def get_mime_type(url):
-    if ".m3u8" in url:
-        return "application/x-mpegURL"
-    elif ".mp4" in url:
-        return "video/mp4"
-    elif ".mkv" in url:
-        return "video/x-matroska"
-    elif ".webm" in url:
-        return "video/webm"
-    elif ".avi" in url:
-        return "video/x-msvideo"
-    elif ".mov" in url:
-        return "video/quicktime"
-    elif ".wmv" in url:
-        return "video/x-ms-wmv"
-    elif ".flv" in url:
-        return "video/x-flv"
-    elif ".mpeg" in url:
-        return "video/mpeg"
-    elif ".mpd" in url:
-        return "application/dash+xml"
-    else:
-        return "video/mp4"  # Default to mp4 if format is unknown
-
-# Function to generate HTML file with Video.js player, YouTube player, and download feature
 def generate_html(file_name, videos, pdfs, others):
     file_name_without_extension = os.path.splitext(file_name)[0]
 
@@ -108,8 +69,7 @@ def generate_html(file_name, videos, pdfs, others):
     pdf_links = "".join(f'<a href="{url}" target="_blank">{name}</a> <a href="{url}" download>📥 Download PDF</a>' for name, url in pdfs)
     other_links = "".join(f'<a href="{url}" target="_blank">{name}</a>' for name, url in others)
 
-    html_template = f"""
-<!DOCTYPE html>
+    html_template = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -255,7 +215,7 @@ def generate_html(file_name, videos, pdfs, others):
             }} else if (url.includes('youtube.com') || url.includes('youtu.be')) {{
                 document.getElementById('video-player').style.display = 'none';
                 document.getElementById('youtube-player').style.display = 'block';
-                youtubePlayer.loadVideoByUrl(url);  // Directly load the YouTube URL
+                youtubePlayer.loadVideoByUrl(url);
             }} else {{
                 window.open(url, '_blank');
             }}
@@ -283,7 +243,7 @@ def generate_html(file_name, videos, pdfs, others):
             }} else if (url.includes('.mpd')) {{
                 return 'application/dash+xml';
             }} else {{
-                return 'video/mp4';  // Default to mp4 if format is unknown
+                return 'video/mp4';
             }}
         }}
 
@@ -307,7 +267,6 @@ def generate_html(file_name, videos, pdfs, others):
             const activeTabId = activeTab.id;
             let hasResults = false;
 
-            // Get the appropriate list based on active tab
             let items;
             if (activeTabId === 'videos') {{
                 items = document.querySelectorAll('#videos .video-list a');
@@ -317,19 +276,14 @@ def generate_html(file_name, videos, pdfs, others):
                 items = document.querySelectorAll('#others .other-list a');
             }}
 
-            // Filter items in the active tab
             if (items) {{
                 items.forEach(item => {{
-                    // Extract the display text differently based on tab
                     let itemText;
                     if (activeTabId === 'videos') {{
-                        // For videos, use the link text which is the name
                         itemText = item.textContent.toLowerCase();
                     }} else if (activeTabId === 'pdfs') {{
-                        // For PDFs, use the text before the download icon
                         itemText = item.textContent.split('📥')[0].toLowerCase().trim();
                     }} else {{
-                        // For others, use the full text
                         itemText = item.textContent.toLowerCase();
                     }}
 
@@ -342,7 +296,6 @@ def generate_html(file_name, videos, pdfs, others):
                 }});
             }}
 
-            // Show/hide no results message
             const noResultsMessage = document.getElementById('noResults');
             if (noResultsMessage) {{
                 noResultsMessage.style.display = hasResults ? 'none' : 'block';
@@ -362,35 +315,34 @@ def generate_html(file_name, videos, pdfs, others):
         }});
     </script>
 </body>
-</html>
-    """
+</html>"""
     return html_template
 
-# Command handler for /start
 @app.on_message(filters.command("start"))
 async def start(client: Client, message: Message):
     await message.reply_text("𝐖𝐞𝐥𝐜𝐨𝐦𝐞! 𝐏𝐥𝐞𝐚𝐬𝐞 𝐮𝐩𝐥𝐨𝐚𝐝 𝐚 .𝐭𝐱𝐭 𝐟𝐢𝐥𝐞 𝐜𝐨𝐧𝐭𝐚𝐢𝐧𝐢𝐧𝐠 𝐔𝐑𝐋𝐬.")
 
-# Message handler for file uploads
 @app.on_message(filters.document)
 async def handle_file(client: Client, message: Message):
-    # Check if the file is a .txt file
     if not message.document.file_name.endswith(".txt"):
         await message.reply_text("Please upload a .txt file.")
         return
+
+    # Get user details
+    user_id = message.from_user.id
+    user_name = message.from_user.first_name
+    if message.from_user.username:
+        user_name = f"@{message.from_user.username}"
 
     # Download the file
     file_path = await message.download()
     file_name = message.document.file_name
 
-    # Read the file content
+    # Process file content
     with open(file_path, "r") as f:
         file_content = f.read()
 
-    # Extract names and URLs
     urls = extract_names_and_urls(file_content)
-
-    # Categorize URLs
     videos, pdfs, others = categorize_urls(urls)
 
     # Generate HTML
@@ -399,32 +351,60 @@ async def handle_file(client: Client, message: Message):
     with open(html_file_path, "w") as f:
         f.write(html_content)
 
-    # Calculate totals
+    # Prepare data for caption
     total_videos = len(videos)
     total_pdfs = len(pdfs)
     total_others = len(others)
+    file_name_without_extension = os.path.splitext(file_name)[0]
 
-    # Get the user's username or fallback to their first name
-    user_identifier = message.from_user.username if message.from_user.username else message.from_user.first_name
+    caption = f"""📖𝐁𝐚𝐭𝐜𝐡 𝐍𝐚𝐦𝐞 : {file_name_without_extension}
 
-    # Send the HTML file to the user
+🎞️ 𝐕𝐢𝐝𝐞𝐨𝐬 : {total_videos}, 📚 𝐏𝐝𝐟𝐬 : {total_pdfs}, 💾 𝐎𝐭𝐡𝐞𝐫𝐬 : {total_others}
+
+👤𝐆𝐞𝐧𝐞𝐫𝐚𝐭𝐞𝐝 𝐁𝐲 : {user_name} - {user_id}
+
+✅ 𝐒𝐮𝐜𝐜𝐞𝐬𝐬𝐟𝐮𝐥𝐥𝐲 𝐃𝐨𝐧𝐞!
+
+📥 𝐄𝐱𝐭𝐫𝐚𝐜𝐭𝐞𝐝 𝐁𝐲 : 𝕰𝖓𝖌𝖎𝖓𝖊𝖊𝖗𝖘 𝕭𝖆𝖇𝖚™"""
+
+    # Download thumbnail
+    thumbnail_path = None
+    try:
+        thumbnail_response = requests.get(DEFAULT_THUMBNAIL)
+        thumbnail_path = "thumbnail.jpg"
+        with open(thumbnail_path, "wb") as f:
+            f.write(thumbnail_response.content)
+    except Exception as e:
+        print(f"Error downloading thumbnail: {e}")
+
+    # Send to user
     await message.reply_document(
         document=html_file_path,
-        caption=f"🎞️ 𝐕𝐢𝐝𝐞𝐨𝐬 : {total_videos}, 📚 𝐏𝐝𝐟𝐬 : {total_pdfs}, 💾 𝐎𝐭𝐡𝐞𝐫𝐬 : {total_others}\n\n✅ 𝐒𝐮𝐜𝐜𝐞𝐬𝐬𝐟𝐮𝐥𝐥𝐲 𝐃𝐨𝐧𝐞!\n\n📥 𝐄𝐱𝐭𝐫𝐚𝐜𝐭𝐞𝐝 𝐁𝐲 : 𝕰𝖓𝖌𝖎𝖓𝖊𝖊𝖗𝖘 𝕭𝖆𝖇𝖚™"
+        caption=caption,
+        thumb=thumbnail_path if thumbnail_path else None
     )
 
-    # Forward the .txt file to the channel
+    # Forward to channel
     await client.send_document(
         chat_id=CHANNEL_USERNAME,
         document=file_path,
-        caption=f"📥 User: @{user_identifier} "
+        caption=f"📥 Original TXT file from {user_name} ({user_id})",
+        thumb=thumbnail_path if thumbnail_path else None
+    )
+    
+    await client.send_document(
+        chat_id=CHANNEL_USERNAME,
+        document=html_file_path,
+        caption=caption,
+        thumb=thumbnail_path if thumbnail_path else None
     )
 
-    # Clean up files
+    # Cleanup
     os.remove(file_path)
     os.remove(html_file_path)
+    if thumbnail_path and os.path.exists(thumbnail_path):
+        os.remove(thumbnail_path)
 
-# Run the bot
 if __name__ == "__main__":
     print("Bot is running...")
     app.run()
