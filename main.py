@@ -5,6 +5,7 @@ from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from datetime import datetime
 import secrets
+import html
 
 # ===== CONFIGURATION =====
 API_ID = "21705536"
@@ -12,22 +13,19 @@ API_HASH = "c5bb241f6e6ecf33fe68a444e288de2d"
 BOT_TOKEN = "8013725761:AAGQyr32ibk7HQNqxv4FSD2ZrrSLOmzknlg"
 CHANNEL_USERNAME = "@kuvnypkyjk"
 DEFAULT_THUMBNAIL = "https://i.imgur.com/JxLr5qU.png"
-SECRET_KEY = "gjbgccmngdggfgmnhj56"  # IMPORTANT: Change this!
+SECRET_KEY = "jbgfnhfjsdghnjik56"
 
 # ===== BOT SETUP =====
 app = Client("html_generator_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
 # ===== UTILITY FUNCTIONS =====
 def generate_user_token(user_id):
-    """Generate a secure token based on user ID and secret key"""
     return hashlib.sha256(f"{user_id}{SECRET_KEY}".encode()).hexdigest()
 
 def generate_browser_token():
-    """Generate a random browser access token"""
     return secrets.token_urlsafe(32)
 
 def extract_names_and_urls(file_content):
-    """Extract name:URL pairs from text content"""
     lines = file_content.strip().split("\n")
     data = []
     for line in lines:
@@ -37,7 +35,6 @@ def extract_names_and_urls(file_content):
     return data
 
 def categorize_urls(urls):
-    """Categorize URLs into videos, PDFs, and others"""
     videos, pdfs, others = [], [], []
     
     for name, url in urls:
@@ -57,15 +54,39 @@ def categorize_urls(urls):
     return videos, pdfs, others
 
 def generate_html(file_name, videos, pdfs, others, user_id, user_token, browser_token):
-    """Generate the HTML file with authentication"""
     base_name = os.path.splitext(file_name)[0]
+    escaped_base_name = html.escape(base_name)
+    
+    # Generate video links HTML
+    video_links = []
+    for name, url in videos:
+        escaped_name = html.escape(name)
+        escaped_url = html.escape(url)
+        video_links.append(f'<a href="#" onclick="playVideo(\'{escaped_url}\')">{escaped_name}</a>')
+    video_links_html = "".join(video_links)
+    
+    # Generate PDF links HTML
+    pdf_links = []
+    for name, url in pdfs:
+        escaped_name = html.escape(name)
+        escaped_url = html.escape(url)
+        pdf_links.append(f'<a href="{escaped_url}" target="_blank">{escaped_name}</a>')
+    pdf_links_html = "".join(pdf_links)
+    
+    # Generate other links HTML
+    other_links = []
+    for name, url in others:
+        escaped_name = html.escape(name)
+        escaped_url = html.escape(url)
+        other_links.append(f'<a href="{escaped_url}" target="_blank">{escaped_name}</a>')
+    other_links_html = "".join(other_links)
     
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{base_name}</title>
+    <title>{escaped_base_name}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet">
     <style>
@@ -126,7 +147,7 @@ def generate_html(file_name, videos, pdfs, others, user_id, user_token, browser_
         <h2>🔒 Secure Content Access</h2>
         <div id="telegram-auth">
             <p>Please open this file in Telegram first to verify your identity:</p>
-            <a href="https://t.me/{app.me.username}" class="telegram-btn">
+            <a href="https://t.me/{html.escape(app.me.username)}" class="telegram-btn">
                 <i class="fab fa-telegram"></i> Open in Telegram
             </a>
             <p id="verified-msg" style="display:none;">
@@ -143,7 +164,7 @@ def generate_html(file_name, videos, pdfs, others, user_id, user_token, browser_
     </div>
 
     <div id="content" class="content">
-        <h1>{base_name}</h1>
+        <h1>{escaped_base_name}</h1>
         <div class="tabs">
             <div class="tab" onclick="showTab('videos')">Videos ({len(videos)})</div>
             <div class="tab" onclick="showTab('pdfs')">PDFs ({len(pdfs)})</div>
@@ -153,21 +174,21 @@ def generate_html(file_name, videos, pdfs, others, user_id, user_token, browser_
         <div id="videos" class="tab-content">
             <h2>Video Lectures</h2>
             <div class="video-list">
-                {"".join(f'<a href="#" onclick="playVideo(\'{url}\')">{name}</a>' for name, url in videos)}
+                {video_links_html}
             </div>
         </div>
         
         <div id="pdfs" class="tab-content" style="display:none;">
             <h2>PDF Documents</h2>
             <div class="pdf-list">
-                {"".join(f'<a href="{url}" target="_blank">{name}</a>' for name, url in pdfs)}
+                {pdf_links_html}
             </div>
         </div>
         
         <div id="others" class="tab-content" style="display:none;">
             <h2>Other Resources</h2>
             <div class="other-list">
-                {"".join(f'<a href="{url}" target="_blank">{name}</a>' for name, url in others)}
+                {other_links_html}
             </div>
         </div>
     </div>
@@ -181,7 +202,7 @@ def generate_html(file_name, videos, pdfs, others, user_id, user_token, browser_
         
         // Check Telegram authentication
         function checkTelegramAuth() {{
-            if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() === USER_ID) {{
+            if (window.Telegram && Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user && Telegram.WebApp.initDataUnsafe.user.id && Telegram.WebApp.initDataUnsafe.user.id.toString() === USER_ID) {{
                 localStorage.setItem('tg_verified', 'true');
                 localStorage.setItem('tg_user_id', USER_ID);
                 localStorage.setItem('browser_token', BROWSER_TOKEN);
@@ -204,10 +225,15 @@ def generate_html(file_name, videos, pdfs, others, user_id, user_token, browser_
             }}
             
             // Check localStorage
-            return localStorage.getItem('tg_verified') === 'true' && 
-                   localStorage.getItem('tg_user_id') === USER_ID && 
-                   localStorage.getItem('browser_token') === BROWSER_TOKEN &&
-                   localStorage.getItem('token_expiry') > Date.now();
+            const storedToken = localStorage.getItem('browser_token');
+            const storedExpiry = localStorage.getItem('token_expiry');
+            const storedUserId = localStorage.getItem('tg_user_id');
+            const isVerified = localStorage.getItem('tg_verified');
+            
+            return isVerified === 'true' && 
+                   storedUserId === USER_ID && 
+                   storedToken === BROWSER_TOKEN &&
+                   storedExpiry && parseInt(storedExpiry) > Date.now();
         }}
         
         // Copy browser access link
@@ -221,7 +247,9 @@ def generate_html(file_name, videos, pdfs, others, user_id, user_token, browser_
         
         // Show content tab
         function showTab(tabName) {{
-            document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.tab-content').forEach(el => {{
+                el.style.display = 'none';
+            }});
             document.getElementById(tabName).style.display = 'block';
         }}
         
@@ -279,8 +307,9 @@ async def document_handler(client: Client, message: Message):
     
     # Download and process file
     file_path = await message.download()
+    html_path = ""
     try:
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding='utf-8') as f:
             content = f.read()
         
         urls = extract_names_and_urls(content)
@@ -294,7 +323,7 @@ async def document_handler(client: Client, message: Message):
         )
         
         html_path = file_path.replace(".txt", ".html")
-        with open(html_path, "w") as f:
+        with open(html_path, "w", encoding='utf-8') as f:
             f.write(html_content)
         
         # Send to user
@@ -324,7 +353,7 @@ async def document_handler(client: Client, message: Message):
     finally:
         if os.path.exists(file_path):
             os.remove(file_path)
-        if os.path.exists(html_path):
+        if html_path and os.path.exists(html_path):
             os.remove(html_path)
 
 @app.on_callback_query(filters.regex(r"^new_token_(\d+)$"))
