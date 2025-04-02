@@ -10,7 +10,7 @@ import html
 # ===== CONFIGURATION =====
 API_ID = "21705536"
 API_HASH = "c5bb241f6e6ecf33fe68a444e288de2d"
-BOT_TOKEN = "8013725761:AAGQyr32ibk7HQNqxv4FSD2ZrrSLOmzknlg"
+BOT_TOKEN = "7694154149:AAEvcjZT0vpI62EFiZPl9zxGQhbVPNRcQHs"
 CHANNEL_USERNAME = "@kuvnypkyjk"
 DEFAULT_THUMBNAIL = "https://i.imgur.com/JxLr5qU.png"
 SECRET_KEY = "jbgfnhfjsdghnjik56"
