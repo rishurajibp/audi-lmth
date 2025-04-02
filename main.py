@@ -8,7 +8,7 @@ import secrets
 import html
 
 # ===== CONFIGURATION =====
-API_ID = "21705536"
+API_ID = 21705536
 API_HASH = "c5bb241f6e6ecf33fe68a444e288de2d"
 BOT_TOKEN = "7694154149:AAEvcjZT0vpI62EFiZPl9zxGQhbVPNRcQHs"
 CHANNEL_USERNAME = "@kuvnypkyjk"
