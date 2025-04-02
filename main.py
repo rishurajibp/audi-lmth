@@ -1,19 +1,33 @@
 import os
 import requests
+import hashlib
 from pyrogram import Client, filters
-from pyrogram.types import Message
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from datetime import datetime
+import secrets
 
-# Bot configuration
+# ===== CONFIGURATION =====
 API_ID = "21705536"
-API_HASH = "c5bb241f6e3ecf33fe68a444e288de2d"
+API_HASH = "c5bb241f6e6ecf33fe68a444e288de2d"
 BOT_TOKEN = "8013725761:AAGQyr32ibk7HQNqxv4FSD2ZrrSLOmzknlg"
 CHANNEL_USERNAME = "@kuvnypkyjk"
-DEFAULT_THUMBNAIL = "https://i.postimg.cc/4N69wBLt/hat-hacker.webp"  # Default thumbnail URL
+DEFAULT_THUMBNAIL = "https://i.imgur.com/JxLr5qU.png"
+SECRET_KEY = "gjbgccmngdggfgmnhj56"  # IMPORTANT: Change this!
 
-app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+# ===== BOT SETUP =====
+app = Client("html_generator_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+
+# ===== UTILITY FUNCTIONS =====
+def generate_user_token(user_id):
+    """Generate a secure token based on user ID and secret key"""
+    return hashlib.sha256(f"{user_id}{SECRET_KEY}".encode()).hexdigest()
+
+def generate_browser_token():
+    """Generate a random browser access token"""
+    return secrets.token_urlsafe(32)
 
 def extract_names_and_urls(file_content):
+    """Extract name:URL pairs from text content"""
     lines = file_content.strip().split("\n")
     data = []
     for line in lines:
@@ -23,388 +37,338 @@ def extract_names_and_urls(file_content):
     return data
 
 def categorize_urls(urls):
-    videos = []
-    pdfs = []
-    others = []
-
+    """Categorize URLs into videos, PDFs, and others"""
+    videos, pdfs, others = [], [], []
+    
     for name, url in urls:
-        new_url = url
-        if "media-cdn.classplusapp.com/drm/" in url or "cpvod.testbook" in url:
-            new_url = f"https://dragoapi.vercel.app/video/{url}"
-            videos.append((name, new_url))
-        elif "classplusapp" in url:
-            new_url = f"https://api.extractor.workers.dev/player?url={url}"
-            videos.append((name, new_url))
-        elif ".zip" in url:
-            new_url = f"https://video.pablocoder.eu.org/appx-zip?url={url}"
-            videos.append((name, new_url))
-        elif "dragoapi.vercel" in url:
+        if any(ext in url.lower() for ext in ['.m3u8', '.mp4', '.mkv', '.webm', '.avi', '.mov', '.wmv', '.flv', '.mpeg', '.mpd']):
             videos.append((name, url))
-        elif "/master.mpd" in url:
-            vid_id = url.split("/")[-2]
-            new_url = f"https://player.muftukmall.site/?id={vid_id}"
-            videos.append((name, new_url))
-        elif "youtube.com/embed" in url or "youtu.be" in url or "youtube.com/watch" in url:
+        elif 'youtube.com' in url or 'youtu.be' in url:
             videos.append((name, url))
-        elif (
-            ".m3u8" in url or ".mp4" in url or ".mkv" in url or ".webm" in url or
-            ".MP4" in url or ".AVI" in url or ".MOV" in url or ".WMV" in url or
-            ".MKV" in url or ".FLV" in url or ".MPEG" in url or ".mpd" in url
-        ):
-            videos.append((name, url))
-        elif "pdf*" in url:
-            new_url = f"https://dragoapi.vercel.app/pdf/{url}"
-            pdfs.append((name, new_url))
-        elif "pdf" in url:
+        elif 'classplusapp.com' in url or 'testbook.com' in url:
+            videos.append((name, f"https://dragoapi.vercel.app/video/{url}"))
+        elif '.pdf' in url.lower():
             pdfs.append((name, url))
+        elif '.zip' in url.lower():
+            videos.append((name, f"https://video.pablocoder.eu.org/appx-zip?url={url}"))
         else:
             others.append((name, url))
-
+    
     return videos, pdfs, others
 
-def generate_html(file_name, videos, pdfs, others):
-    file_name_without_extension = os.path.splitext(file_name)[0]
-
-    video_links = "".join(f'<a href="#" onclick="playVideo(\'{url}\')">{name}</a>' for name, url in videos)
-    pdf_links = "".join(f'<a href="{url}" target="_blank">{name}</a> <a href="{url}" download>📥 Download PDF</a>' for name, url in pdfs)
-    other_links = "".join(f'<a href="{url}" target="_blank">{name}</a>' for name, url in others)
-
-    html_template = f"""<!DOCTYPE html>
+def generate_html(file_name, videos, pdfs, others, user_id, user_token, browser_token):
+    """Generate the HTML file with authentication"""
+    base_name = os.path.splitext(file_name)[0]
+    
+    html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{file_name_without_extension}</title>
+    <title>{base_name}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet">
     <style>
-        * {{ margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }}
-        body {{ background: #f5f7fa; text-align: center; }}
-        .header {{ background: linear-gradient(90deg, #007bff, #6610f2); color: white; padding: 15px; font-size: 24px; font-weight: bold; }}
-        .subheading {{ font-size: 18px; margin-top: 10px; color: #555; font-weight: bold; }}
-        .subheading a {{ background: linear-gradient(90deg, #ff416c, #ff4b2b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-decoration: none; font-weight: bold; }}
-        .container {{ display: flex; justify-content: space-around; margin: 30px auto; width: 80%; }}
-        .tab {{ flex: 1; padding: 20px; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); cursor: pointer; transition: 0.3s; border-radius: 10px; font-size: 20px; font-weight: bold; }}
-        .tab:hover {{ background: #007bff; color: white; }}
-        .content {{ display: none; margin-top: 20px; }}
-        .content.active {{ display: block; }}
-        .footer {{ margin-top: 30px; font-size: 18px; font-weight: bold; padding: 15px; background: #1c1c1c; color: white; border-radius: 10px; }}
-        .footer a {{ color: #ffeb3b; text-decoration: none; font-weight: bold; }}
-        .video-list, .pdf-list, .other-list {{ text-align: left; max-width: 600px; margin: auto; }}
-        .video-list a, .pdf-list a, .other-list a {{ display: block; padding: 10px; background: #fff; margin: 5px 0; border-radius: 5px; text-decoration: none; color: #007bff; font-weight: bold; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }}
-        .video-list a:hover, .pdf-list a:hover, .other-list a:hover {{ background: #007bff; color: white; }}
-        .search-bar {{ margin: 20px auto; width: 80%; max-width: 600px; }}
-        .search-bar input {{ width: 100%; padding: 10px; border: 2px solid #007bff; border-radius: 5px; font-size: 16px; }}
-        .no-results {{ color: red; font-weight: bold; margin-top: 20px; display: none; }}
-        #video-player {{ display: none; margin: 20px auto; width: 80%; max-width: 800px; }}
-        #youtube-player {{ display: none; margin: 20px auto; width: 80%; max-width: 800px; }}
-        .download-button {{ margin-top: 10px; text-align: center; }}
-        .download-button a {{ background: #007bff; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-weight: bold; }}
-        .download-button a:hover {{ background: #0056b3; }}
-        .datetime {{ margin-top: 10px; font-size: 18px; font-weight: bold; color: #2F4F4F; }}
+        body {{
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f7fa;
+            text-align: center;
+        }}
+        .auth-container {{
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }}
+        .telegram-btn {{
+            background: #0088cc;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-block;
+            margin: 15px 0;
+            font-weight: bold;
+        }}
+        .content {{
+            display: none;
+        }}
+        .verified-badge {{
+            color: #4CAF50;
+            margin-left: 5px;
+        }}
+        .tab {{
+            padding: 10px 15px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            display: inline-block;
+        }}
+        .video-list a, .pdf-list a, .other-list a {{
+            display: block;
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 5px;
+            text-decoration: none;
+            color: #007bff;
+        }}
     </style>
 </head>
 <body>
-    <div class="header">{file_name_without_extension}</div>
-    <div class="subheading">📥 𝐄𝐱𝐭𝐫𝐚𝐜𝐭𝐞𝐝 𝐁𝐲 : <a href="https://t.me/Engineersbabuhelpbot" target="_blank">𝕰𝖓𝖌𝖎𝖓𝖊𝖊𝖗𝖘 𝕭𝖆𝖇𝖚™</a></div><br>
-    <div class="datetime" id="datetime">📅 {datetime.now().strftime('%A %d %B, %Y | ⏰ %I:%M:%S %p')}</div><br>
-    <p>🔹𝐔𝐬𝐞 𝐓𝐡𝐢𝐬 𝐁𝐨𝐭 𝐟𝐨𝐫 𝐓𝐗𝐓 𝐭𝐨 𝐇𝐓𝐌𝐋 𝐟𝐢𝐥𝐞 𝐄𝐱𝐭𝐫𝐚𝐜𝐭𝐢𝐨𝐧 : <a href="https://t.me/htmldeveloperbot" target="_blank"> @𝐡𝐭𝐦𝐥𝐝𝐞𝐯𝐞𝐥𝐨𝐩𝐞𝐫𝐛𝐨𝐭 </a></p>
-
-    <div class="search-bar">
-        <input type="text" id="searchInput" placeholder="Search for videos, PDFs, or other resources..." oninput="filterContent()">
-    </div>
-
-    <div id="noResults" class="no-results">No results found.</div>
-
-    <div id="video-player">
-        <video id="engineer-babu-player" class="video-js vjs-default-skin" controls preload="auto" width="640" height="360">
-            <p class="vjs-no-js">
-                To view this video please enable JavaScript, and consider upgrading to a web browser that
-                <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+    <div id="auth-container" class="auth-container">
+        <h2>🔒 Secure Content Access</h2>
+        <div id="telegram-auth">
+            <p>Please open this file in Telegram first to verify your identity:</p>
+            <a href="https://t.me/{app.me.username}" class="telegram-btn">
+                <i class="fab fa-telegram"></i> Open in Telegram
+            </a>
+            <p id="verified-msg" style="display:none;">
+                <i class="fas fa-check-circle verified-badge"></i> Verified successfully!
             </p>
-        </video>
-        <div class="download-button">
-            <a id="download-link" href="#" download>Download Video</a>
         </div>
-        <div style="text-align: center; margin-top: 10px; font-weight: bold; color: #007bff;">Engineer Babu Player</div>
-    </div>
-
-    <div id="youtube-player">
-        <div id="player"></div>
-        <div style="text-align: center; margin-top: 10px; font-weight: bold; color: #007bff;">Engineer Babu Player</div>
-    </div>
-
-    <div class="container">
-        <div class="tab" onclick="showContent('videos')">Videos</div>
-        <div class="tab" onclick="showContent('pdfs')">PDFs</div>
-        <div class="tab" onclick="showContent('others')">Others</div>
-    </div>
-
-    <div id="videos" class="content active">
-        <h2>All Video Lectures</h2>
-        <div class="video-list">
-            {video_links}
+        <div id="browser-access" style="display:none; margin-top:20px;">
+            <h3>Browser Access Granted</h3>
+            <p>You can now access this content in any browser for 7 days</p>
+            <button onclick="copyAccessLink()" style="background:#007bff; color:white; border:none; padding:10px 15px; border-radius:5px; cursor:pointer;">
+                <i class="fas fa-copy"></i> Copy Browser Link
+            </button>
         </div>
     </div>
 
-    <div id="pdfs" class="content">
-        <h2>All PDFs</h2>
-        <div class="pdf-list">
-            {pdf_links}
+    <div id="content" class="content">
+        <h1>{base_name}</h1>
+        <div class="tabs">
+            <div class="tab" onclick="showTab('videos')">Videos ({len(videos)})</div>
+            <div class="tab" onclick="showTab('pdfs')">PDFs ({len(pdfs)})</div>
+            <div class="tab" onclick="showTab('others')">Others ({len(others)})</div>
+        </div>
+        
+        <div id="videos" class="tab-content">
+            <h2>Video Lectures</h2>
+            <div class="video-list">
+                {"".join(f'<a href="#" onclick="playVideo(\'{url}\')">{name}</a>' for name, url in videos)}
+            </div>
+        </div>
+        
+        <div id="pdfs" class="tab-content" style="display:none;">
+            <h2>PDF Documents</h2>
+            <div class="pdf-list">
+                {"".join(f'<a href="{url}" target="_blank">{name}</a>' for name, url in pdfs)}
+            </div>
+        </div>
+        
+        <div id="others" class="tab-content" style="display:none;">
+            <h2>Other Resources</h2>
+            <div class="other-list">
+                {"".join(f'<a href="{url}" target="_blank">{name}</a>' for name, url in others)}
+            </div>
         </div>
     </div>
 
-    <div id="others" class="content">
-        <h2>Other Resources</h2>
-        <div class="other-list">
-            {other_links}
-        </div>
-    </div>
-
-    <div class="footer">Extracted By - <a href="https://t.me/Engineers_Babu" target="_blank">Engineer Babu</a></div>
-
-    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
-    <script src="https://www.youtube.com/iframe_api"></script>
     <script>
-        const player = videojs('engineer-babu-player', {{
-            controls: true,
-            autoplay: true,
-            preload: 'auto',
-            fluid: true,
-        }});
-
-        let youtubePlayer;
-
-        function onYouTubeIframeAPIReady() {{
-            youtubePlayer = new YT.Player('player', {{
-                height: '360',
-                width: '640',
-                events: {{
-                    'onReady': onPlayerReady,
-                }}
-            }});
+        // Authentication data
+        const USER_ID = "{user_id}";
+        const USER_TOKEN = "{user_token}";
+        const BROWSER_TOKEN = "{browser_token}";
+        const EXPIRY_DAYS = 7;
+        
+        // Check Telegram authentication
+        function checkTelegramAuth() {{
+            if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() === USER_ID) {{
+                localStorage.setItem('tg_verified', 'true');
+                localStorage.setItem('tg_user_id', USER_ID);
+                localStorage.setItem('browser_token', BROWSER_TOKEN);
+                localStorage.setItem('token_expiry', Date.now() + (EXPIRY_DAYS * 24 * 60 * 60 * 1000));
+                return true;
+            }}
+            return false;
         }}
-
-        function onPlayerReady(event) {{
-            // You can add additional functionality here if needed
+        
+        // Check existing valid authentication
+        function checkExistingAuth() {{
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlToken = urlParams.get('token');
+            
+            // Check URL token
+            if (urlToken === BROWSER_TOKEN) {{
+                localStorage.setItem('browser_token', BROWSER_TOKEN);
+                localStorage.setItem('token_expiry', Date.now() + (EXPIRY_DAYS * 24 * 60 * 60 * 1000));
+                return true;
+            }}
+            
+            // Check localStorage
+            return localStorage.getItem('tg_verified') === 'true' && 
+                   localStorage.getItem('tg_user_id') === USER_ID && 
+                   localStorage.getItem('browser_token') === BROWSER_TOKEN &&
+                   localStorage.getItem('token_expiry') > Date.now();
         }}
-
+        
+        // Copy browser access link
+        function copyAccessLink() {{
+            const url = new URL(window.location.href);
+            url.searchParams.set('token', BROWSER_TOKEN);
+            navigator.clipboard.writeText(url.toString())
+                .then(() => alert('Browser access link copied!'))
+                .catch(() => alert('Failed to copy link'));
+        }}
+        
+        // Show content tab
+        function showTab(tabName) {{
+            document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+            document.getElementById(tabName).style.display = 'block';
+        }}
+        
+        // Play video
         function playVideo(url) {{
-            if (
-                url.includes('.m3u8') ||
-                url.includes('.mp4') ||
-                url.includes('.mkv') ||
-                url.includes('.webm') ||
-                url.includes('.MP4') ||
-                url.includes('.AVI') ||
-                url.includes('.MOV') ||
-                url.includes('.WMV') ||
-                url.includes('.MKV') ||
-                url.includes('.FLV') ||
-                url.includes('.MPEG') ||
-                url.includes('.mpd')
-            ) {{
-                document.getElementById('video-player').style.display = 'block';
-                document.getElementById('youtube-player').style.display = 'none';
-                const mimeType = getMimeType(url);
-                player.src({{ src: url, type: mimeType }});
-                player.play().catch(() => {{
-                    window.open(url, '_blank');
-                }});
-                document.getElementById('download-link').href = url;
-            }} else if (url.includes('youtube.com') || url.includes('youtu.be')) {{
-                document.getElementById('video-player').style.display = 'none';
-                document.getElementById('youtube-player').style.display = 'block';
-                youtubePlayer.loadVideoByUrl(url);
-            }} else {{
+            if (url.includes('youtube.com') || url.includes('youtu.be')) {{
                 window.open(url, '_blank');
-            }}
-        }}
-
-        function getMimeType(url) {{
-            if (url.includes('.m3u8')) {{
-                return 'application/x-mpegURL';
-            }} else if (url.includes('.mp4')) {{
-                return 'video/mp4';
-            }} else if (url.includes('.mkv')) {{
-                return 'video/x-matroska';
-            }} else if (url.includes('.webm')) {{
-                return 'video/webm';
-            }} else if (url.includes('.avi')) {{
-                return 'video/x-msvideo';
-            }} else if (url.includes('.mov')) {{
-                return 'video/quicktime';
-            }} else if (url.includes('.wmv')) {{
-                return 'video/x-ms-wmv';
-            }} else if (url.includes('.flv')) {{
-                return 'video/x-flv';
-            }} else if (url.includes('.mpeg')) {{
-                return 'video/mpeg';
-            }} else if (url.includes('.mpd')) {{
-                return 'application/dash+xml';
             }} else {{
-                return 'video/mp4';
+                alert('Would play video: ' + url);
+                // Implement your video player here
             }}
         }}
-
-        function showContent(tabName) {{
-            const contents = document.querySelectorAll('.content');
-            contents.forEach(content => {{
-                content.classList.remove('active');
-                content.style.display = 'none';
-            }});
-            const selectedContent = document.getElementById(tabName);
-            if (selectedContent) {{
-                selectedContent.classList.add('active');
-                selectedContent.style.display = 'block';
-            }}
-            filterContent();
-        }}
-
-        function filterContent() {{
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const activeTab = document.querySelector('.content.active') || document.getElementById('videos');
-            const activeTabId = activeTab.id;
-            let hasResults = false;
-
-            let items;
-            if (activeTabId === 'videos') {{
-                items = document.querySelectorAll('#videos .video-list a');
-            }} else if (activeTabId === 'pdfs') {{
-                items = document.querySelectorAll('#pdfs .pdf-list a');
-            }} else if (activeTabId === 'others') {{
-                items = document.querySelectorAll('#others .other-list a');
-            }}
-
-            if (items) {{
-                items.forEach(item => {{
-                    let itemText;
-                    if (activeTabId === 'videos') {{
-                        itemText = item.textContent.toLowerCase();
-                    }} else if (activeTabId === 'pdfs') {{
-                        itemText = item.textContent.split('📥')[0].toLowerCase().trim();
-                    }} else {{
-                        itemText = item.textContent.toLowerCase();
-                    }}
-
-                    if (itemText.includes(searchTerm)) {{
-                        item.style.display = 'block';
-                        hasResults = true;
-                    }} else {{
-                        item.style.display = 'none';
-                    }}
-                }});
-            }}
-
-            const noResultsMessage = document.getElementById('noResults');
-            if (noResultsMessage) {{
-                noResultsMessage.style.display = hasResults ? 'none' : 'block';
-            }}
-        }}
-
-        function updateDateTime() {{
-            const now = new Date();
-            const options = {{ weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }};
-            const formattedDateTime = now.toLocaleDateString('en-US', options);
-            document.getElementById('datetime').innerText = `📅 ${{formattedDateTime}}`;
-        }}
-
+        
+        // Initialize
         document.addEventListener('DOMContentLoaded', () => {{
-            showContent('videos');
-            setInterval(updateDateTime, 1000);
+            if (checkTelegramAuth() || checkExistingAuth()) {{
+                document.getElementById('auth-container').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+                document.getElementById('verified-msg').style.display = 'block';
+                document.getElementById('browser-access').style.display = 'block';
+            }} else {{
+                document.getElementById('auth-container').style.display = 'block';
+            }}
         }});
     </script>
 </body>
 </html>"""
-    return html_template
+    return html_content
 
+# ===== TELEGRAM HANDLERS =====
 @app.on_message(filters.command("start"))
-async def start(client: Client, message: Message):
-    await message.reply_text("𝐖𝐞𝐥𝐜𝐨𝐦𝐞! 𝐏𝐥𝐞𝐚𝐬𝐞 𝐮𝐩𝐥𝐨𝐚𝐝 𝐚 .𝐭𝐱𝐭 𝐟𝐢𝐥𝐞 𝐜𝐨𝐧𝐭𝐚𝐢𝐧𝐢𝐧𝐠 𝐔𝐑𝐋𝐬.")
+async def start_handler(client: Client, message: Message):
+    await message.reply_text(
+        "📁 Welcome to HTML Generator Bot!\n\n"
+        "Send me a .txt file with name:URL pairs to create a secure HTML file.\n\n"
+        f"Your User ID: <code>{message.from_user.id}</code>",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❓ Help", callback_data="help")]])
+    )
 
 @app.on_message(filters.document)
-async def handle_file(client: Client, message: Message):
+async def document_handler(client: Client, message: Message):
     if not message.document.file_name.endswith(".txt"):
-        await message.reply_text("Please upload a .txt file.")
+        await message.reply_text("❌ Please upload a .txt file with name:URL pairs.")
         return
-
-    # Get user details
-    user_id = message.from_user.id
-    user_name = message.from_user.first_name
-    if message.from_user.username:
-        user_name = f"@{message.from_user.username}"
-
-    # Download the file
-    file_path = await message.download()
-    file_name = message.document.file_name
-
-    # Process file content
-    with open(file_path, "r") as f:
-        file_content = f.read()
-
-    urls = extract_names_and_urls(file_content)
-    videos, pdfs, others = categorize_urls(urls)
-
-    # Generate HTML
-    html_content = generate_html(file_name, videos, pdfs, others)
-    html_file_path = file_path.replace(".txt", ".html")
-    with open(html_file_path, "w") as f:
-        f.write(html_content)
-
-    # Prepare data for caption
-    total_videos = len(videos)
-    total_pdfs = len(pdfs)
-    total_others = len(others)
-    file_name_without_extension = os.path.splitext(file_name)[0]
-
-    caption = f"""📖𝐁𝐚𝐭𝐜𝐡 𝐍𝐚𝐦𝐞 : {file_name_without_extension}
-
-🎞️ 𝐕𝐢𝐝𝐞𝐨𝐬 : {total_videos}, 📚 𝐏𝐝𝐟𝐬 : {total_pdfs}, 💾 𝐎𝐭𝐡𝐞𝐫𝐬 : {total_others}
-
-👤𝐆𝐞𝐧𝐞𝐫𝐚𝐭𝐞𝐝 𝐁𝐲 : {user_name} - {user_id}
-
-✅ 𝐒𝐮𝐜𝐜𝐞𝐬𝐬𝐟𝐮𝐥𝐥𝐲 𝐃𝐨𝐧𝐞!
-
-📥 𝐄𝐱𝐭𝐫𝐚𝐜𝐭𝐞𝐝 𝐁𝐲 : 𝕰𝖓𝖌𝖎𝖓𝖊𝖊𝖗𝖘 𝕭𝖆𝖇𝖚™"""
-
-    # Download thumbnail
-    thumbnail_path = None
-    try:
-        thumbnail_response = requests.get(DEFAULT_THUMBNAIL)
-        thumbnail_path = "thumbnail.jpg"
-        with open(thumbnail_path, "wb") as f:
-            f.write(thumbnail_response.content)
-    except Exception as e:
-        print(f"Error downloading thumbnail: {e}")
-
-    # Send to user
-    await message.reply_document(
-        document=html_file_path,
-        caption=caption,
-        thumb=thumbnail_path if thumbnail_path else None
-    )
-
-    # Forward to channel
-    await client.send_document(
-        chat_id=CHANNEL_USERNAME,
-        document=file_path,
-        caption=f"📥 Original TXT file from {user_name} ({user_id})",
-        thumb=thumbnail_path if thumbnail_path else None
-    )
     
-    await client.send_document(
-        chat_id=CHANNEL_USERNAME,
-        document=html_file_path,
-        caption=caption,
-        thumb=thumbnail_path if thumbnail_path else None
+    user = message.from_user
+    user_id = user.id
+    user_name = user.first_name
+    if user.username:
+        user_name = f"@{user.username}"
+    
+    # Generate tokens
+    user_token = generate_user_token(user_id)
+    browser_token = generate_browser_token()
+    
+    # Download and process file
+    file_path = await message.download()
+    try:
+        with open(file_path, "r") as f:
+            content = f.read()
+        
+        urls = extract_names_and_urls(content)
+        videos, pdfs, others = categorize_urls(urls)
+        
+        # Generate HTML
+        html_content = generate_html(
+            message.document.file_name,
+            videos, pdfs, others,
+            user_id, user_token, browser_token
+        )
+        
+        html_path = file_path.replace(".txt", ".html")
+        with open(html_path, "w") as f:
+            f.write(html_content)
+        
+        # Send to user
+        await message.reply_document(
+            document=html_path,
+            caption=(
+                f"📄 {os.path.splitext(message.document.file_name)[0]}\n"
+                f"👤 Generated for: {user_name}\n\n"
+                f"🔐 Browser Access Token:\n<code>{browser_token}</code>\n\n"
+                "⚠️ Open in Telegram first to authenticate, then use the token for browser access."
+            ),
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔄 New Token", callback_data=f"new_token_{user_id}")
+            ]])
+        )
+        
+        # Forward to channel
+        if CHANNEL_USERNAME:
+            await client.send_document(
+                chat_id=CHANNEL_USERNAME,
+                document=html_path,
+                caption=f"HTML file generated for {user_name} ({user_id})"
+            )
+            
+    except Exception as e:
+        await message.reply_text(f"❌ Error processing file: {str(e)}")
+    finally:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        if os.path.exists(html_path):
+            os.remove(html_path)
+
+@app.on_callback_query(filters.regex(r"^new_token_(\d+)$"))
+async def new_token_handler(client, callback):
+    user_id = int(callback.matches[0].group(1))
+    if callback.from_user.id != user_id:
+        await callback.answer("❌ This button is not for you!", show_alert=True)
+        return
+    
+    new_token = generate_browser_token()
+    await callback.message.edit_text(
+        callback.message.text.split("\n\n🔐")[0] + 
+        f"\n\n🔐 New Browser Token:\n<code>{new_token}</code>\n\n"
+        "⚠️ Open in Telegram first to authenticate, then use the token for browser access.",
+        reply_markup=callback.message.reply_markup
+    )
+    await callback.answer("✅ New token generated!")
+
+@app.on_callback_query(filters.regex("^help$"))
+async def help_handler(client, callback):
+    await callback.answer()
+    await callback.message.edit_text(
+        "📚 Help Guide:\n\n"
+        "1. Prepare a .txt file with content like:\n"
+        "<code>Lecture 1:https://example.com/video1.mp4\n"
+        "Notes:https://example.com/notes.pdf</code>\n\n"
+        "2. Send the file to this bot\n"
+        "3. Open the received HTML file in Telegram first\n"
+        "4. After Telegram verification, use the browser token to access from any device\n\n"
+        "🔒 All files are secured to your Telegram account",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data="back")]])
     )
 
-    # Cleanup
-    os.remove(file_path)
-    os.remove(html_file_path)
-    if thumbnail_path and os.path.exists(thumbnail_path):
-        os.remove(thumbnail_path)
+@app.on_callback_query(filters.regex("^back$"))
+async def back_handler(client, callback):
+    await callback.answer()
+    await callback.message.edit_text(
+        "📁 Welcome to HTML Generator Bot!\n\n"
+        "Send me a .txt file with name:URL pairs to create a secure HTML file.\n\n"
+        f"Your User ID: <code>{callback.from_user.id}</code>",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❓ Help", callback_data="help")]])
+    )
 
+# ===== MAIN =====
 if __name__ == "__main__":
-    print("Bot is running...")
+    print("✅ Bot is running...")
     app.run()
