@@ -32,7 +32,7 @@ def categorize_urls(urls):
         if "media-cdn.classplusapp.com/drm/" in url or "cpvod.testbook" in url:
             new_url = f"https://dragoapi.vercel.app/video/{url}"
             videos.append((name, new_url))
-        elif "classplusapp" in url:
+        elif "classplusapp" in url and "m3u8" in url:
             new_url = f"https://api.extractor.workers.dev/player?url={url}"
             videos.append((name, new_url))
         elif ".zip" in url:
