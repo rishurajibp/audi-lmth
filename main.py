@@ -84,20 +84,73 @@ def categorize_urls(urls):
     videos, pdfs, others = [], [], []
     
     for name, url in urls:
-        if any(ext in url.lower() for ext in ['.m3u8', '.mp4', '.mkv', '.webm', '.avi', '.mov', '.wmv', '.flv', '.mpeg', '.mpd']):
+        new_url = url
+        if "media-cdn.classplusapp.com/drm/" in url or "cpvod.testbook" in url:
+            new_url = f"https://dragoapi.vercel.app/video/{url}"
+            videos.append((name, new_url))
+        elif "classplusapp" in url:
+            new_url = f"https://api.extractor.workers.dev/player?url={url}"
+            videos.append((name, new_url))
+        elif ".zip" in url:
+            new_url = f"https://video.pablocoder.eu.org/appx-zip?url={url}"
+            videos.append((name, new_url))
+        elif "dragoapi.vercel" in url:
             videos.append((name, url))
-        elif 'youtube.com' in url or 'youtu.be' in url:
+        elif "/master.mpd" in url:
+            vid_id = url.split("/")[-2]
+            new_url = f"https://player.muftukmall.site/?id={vid_id}"
+            videos.append((name, new_url))
+        elif "youtube.com/embed" in url or "youtu.be" in url or "youtube.com/watch" in url:
+            videos.append((name, url))  # Keep YouTube URLs unchanged
+        elif (
+            ".m3u8" in url
+            or ".mp4" in url
+            or ".mkv" in url
+            or ".webm" in url
+            or ".MP4" in url
+            or ".AVI" in url
+            or ".MOV" in url
+            or ".WMV" in url
+            or ".MKV" in url
+            or ".FLV" in url
+            or ".MPEG" in url
+            or ".mpd" in url
+        ):
             videos.append((name, url))
-        elif 'classplusapp.com' in url or 'testbook.com' in url:
-            videos.append((name, f"https://dragoapi.vercel.app/video/{url}"))
-        elif '.pdf' in url.lower():
+        elif "pdf*" in url:
+            new_url = f"https://dragoapi.vercel.app/pdf/{url}"
+            pdfs.append((name, new_url))
+        elif "pdf" in url:
             pdfs.append((name, url))
-        elif '.zip' in url.lower():
-            videos.append((name, f"https://video.pablocoder.eu.org/appx-zip?url={url}"))
         else:
             others.append((name, url))
-    
+
     return videos, pdfs, others
+
+# Function to get MIME type based on file extension
+def get_mime_type(url):
+    if ".m3u8" in url:
+        return "application/x-mpegURL"
+    elif ".mp4" in url:
+        return "video/mp4"
+    elif ".mkv" in url:
+        return "video/x-matroska"
+    elif ".webm" in url:
+        return "video/webm"
+    elif ".avi" in url:
+        return "video/x-msvideo"
+    elif ".mov" in url:
+        return "video/quicktime"
+    elif ".wmv" in url:
+        return "video/x-ms-wmv"
+    elif ".flv" in url:
+        return "video/x-flv"
+    elif ".mpeg" in url:
+        return "video/mpeg"
+    elif ".mpd" in url:
+        return "application/dash+xml"
+    else:
+        return "video/mp4"  # Default to mp4 if format is unknown
 
 def generate_html(file_name, videos, pdfs, others, user_id, access_code, user_details, profile_photo_url=None, is_admin=False):
     """Generate the complete HTML file with all features"""
