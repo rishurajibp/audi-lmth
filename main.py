@@ -14,7 +14,7 @@ BOT_TOKEN = "8013725761:AAGQyr32ibk7HQNqxv4FSD2ZrrSLOmzknlg"
 DEFAULT_THUMBNAIL = "https://i.postimg.cc/4N69wBLt/hat-hacker.webp"
 SECRET_KEY = "hgygjugxchjhn"  # Change this to a secure random string
 CHANNEL_ID = "@kuvnypkyjk"  # Channel to forward files
-ADMIN_IDS = [1147534909]  # Replace with your admin user ID(s)
+ADMIN_IDS = [1147534909,6669182897,5957208798]  # Replace with your admin user ID(s)
 
 app = Client("secure_html_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
