@@ -14,7 +14,7 @@ BOT_TOKEN = "8013725761:AAHWr33qmoOgzWn_-7HS1g85KrZo8bNdxUM"
 DEFAULT_THUMBNAIL = "https://i.postimg.cc/4N69wBLt/hat-hacker.webp"
 SECRET_KEY = "hgygjugxchjhn"  # Change this to a secure random string
 CHANNEL_ID = "@kuvnypkyjk"  # Channel to forward files
-ADMIN_IDS = [1147534909,6669182897,5957208798]  # Replace with your admin user ID(s)
+ADMIN_IDS = [1147534909, 6669182897, 5957208798]  # Replace with your admin user ID(s)
 
 app = Client("secure_html_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
@@ -113,7 +113,6 @@ def categorize_urls(urls):
 
     return videos, pdfs, others
 
-# Function to get MIME type based on file extension
 def get_mime_type(url):
     if ".m3u8" in url:
         return "application/x-mpegURL"
@@ -141,7 +140,6 @@ def get_mime_type(url):
 def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=None, user_details=None, profile_photo_url=None, is_admin=False):
     base_name = os.path.splitext(file_name)[0]
     
-    # Generate user details HTML with profile photo if available
     profile_photo_html = ""
     if profile_photo_url:
         profile_photo_html = f"""
@@ -150,7 +148,6 @@ def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=Non
         </div>
         """
     
-    # Handle admin case where user details are None
     if is_admin:
         user_details = [
             ("👤 Uploader", "🔓 Admin (Unrestricted Access)"),
@@ -167,20 +164,16 @@ def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=Non
         for label, value in user_details
     )
     
-    # Generate content links
     video_links = "".join(f'<a href="#" onclick="playVideo(\'{url}\')">{name}</a>' for name, url in videos)
     pdf_links = "".join(f'<a href="{url}" target="_blank">{name}</a> <a href="{url}" download>📥 Download PDF</a>' for name, url in pdfs)
     other_links = "".join(f'<a href="{url}" target="_blank">{name}</a>' for name, url in others)
 
-    # Authentication JavaScript - only include if not admin file
     auth_js = ""
     if not is_admin and user_id and access_code:
         auth_js = f"""
-        // Authentication data
         const REQUIRED_USER_ID = "{user_id}";
         const ACCESS_CODE = "{access_code}";
         
-        // Check existing auth
         function checkAuth() {{
             const authData = localStorage.getItem('authData');
             if (authData) {{
@@ -198,19 +191,16 @@ def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=Non
             return false;
         }}
         
-        // Verify access
         function verifyAccess() {{
             const userId = document.getElementById('userIdInput').value;
             const code = document.getElementById('accessCodeInput').value;
             
             if (userId === REQUIRED_USER_ID && code === ACCESS_CODE) {{
-                // Store auth data
                 localStorage.setItem('authData', JSON.stringify({{
                     userId: REQUIRED_USER_ID,
                     code: ACCESS_CODE
                 }}));
                 
-                // Show content
                 document.getElementById('authModal').style.display = 'none';
                 document.getElementById('mainContent').style.display = 'block';
                 document.getElementById('errorMessage').style.display = 'none';
@@ -219,14 +209,12 @@ def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=Non
             }}
         }}
         
-        // Initialize auth check
         if (!checkAuth()) {{
             document.getElementById('authModal').style.display = 'flex';
         }}
         """
     else:
         auth_js = """
-        // No authentication required for admin files
         document.getElementById('authModal').style.display = 'none';
         document.getElementById('mainContent').style.display = 'block';
         """
@@ -243,7 +231,6 @@ def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=Non
         * {{ margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }}
         body {{ background: #f5f7fa; text-align: center; }}
         
-        /* Auth modal styles */
         .auth-modal {{
             position: fixed;
             top: 0;
@@ -313,7 +300,6 @@ def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=Non
             font-weight: bold;
         }}
         
-        /* Profile photo styles */
         .profile-photo-container {{
             position: absolute;
             top: 20px;
@@ -331,7 +317,6 @@ def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=Non
             object-fit: cover;
         }}
         
-        /* User details modal */
         .user-details-modal {{
             position: fixed;
             top: 0;
@@ -398,7 +383,6 @@ def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=Non
             word-break: break-word;
         }}
         
-        /* Original styles remain unchanged */
         .header {{ background: linear-gradient(90deg, #007bff, #6610f2); color: white; padding: 15px; font-size: 24px; font-weight: bold; }}
         .subheading {{ font-size: 18px; margin-top: 10px; color: #555; font-weight: bold; }}
         .subheading a {{ background: linear-gradient(90deg, #ff416c, #ff4b2b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-decoration: none; font-weight: bold; }}
@@ -436,7 +420,6 @@ def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=Non
     </style>
 </head>
 <body>
-    <!-- Auth Modal (only shown for non-admin files) -->
     <div id="authModal" class="auth-modal">
         <div class="auth-content">
             <h1>Welcome to 𝕰𝖓𝖌𝖎𝖓𝖊𝖊𝖗𝖘 𝕭𝖆𝖇𝖚</h1>
@@ -448,7 +431,6 @@ def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=Non
         </div>
     </div>
 
-    <!-- User Details Modal -->
     <div id="userDetailsModal" class="user-details-modal">
         <div class="user-details-content">
             <div class="user-details-header">
@@ -459,7 +441,6 @@ def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=Non
         </div>
     </div>
 
-    <!-- Main Content (hidden until auth for non-admin files) -->
     <div id="mainContent" style="display: none;">
         {profile_photo_html}
         <div class="header">{base_name}</div>
@@ -467,12 +448,10 @@ def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=Non
         <div class="datetime" id="datetime">📅 {datetime.now().strftime('%A %d %B, %Y | ⏰ %I:%M:%S %p')}</div><br>
         <p>🔹𝐔𝐬𝐞 𝐓𝐡𝐢𝐬 𝐁𝐨𝐭 𝐟𝐨𝐫 𝐓𝐗𝐓 𝐭𝐨 𝐇𝐓𝐌𝐋 𝐟𝐢𝐥𝐞 𝐄𝐱𝐭𝐫𝐚𝐜𝐭𝐢𝐨𝐧 : <a href="https://t.me/htmldeveloperbot" target="_blank"> @𝐡𝐭𝐦𝐥𝐝𝐞𝐯𝐞𝐥𝐨𝐩𝐞𝐫𝐛𝐨𝐭 </a></p>
 
-        <!-- User Details Button -->
         <button class="user-details-btn" onclick="showUserDetails()">
             <i class="fas fa-user-circle"></i> View User Details
         </button>
 
-        <!-- Rest of original content -->
         <div class="search-bar">
             <input type="text" id="searchInput" placeholder="Search for videos, PDFs, or other resources..." oninput="filterContent()">
         </div>
@@ -532,7 +511,6 @@ def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=Non
     <script>
         {auth_js}
         
-        // User details functions
         function showUserDetails() {{
             document.getElementById('userDetailsModal').style.display = 'flex';
         }}
@@ -541,7 +519,6 @@ def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=Non
             document.getElementById('userDetailsModal').style.display = 'none';
         }}
         
-        // Close modal when clicking outside content
         window.onclick = function(event) {{
             if (event.target == document.getElementById('userDetailsModal')) {{
                 closeUserDetails();
@@ -719,20 +696,16 @@ async def broadcast_message(client: Client, message: Message):
         await message.reply_text("Please reply to a message to broadcast.")
         return
     
-    # Get all users who have interacted with the bot
     broadcast_users = set()
     
-    # Get users from channel forwards
     async for msg in client.search_messages(CHANNEL_ID, limit=1000):
         if msg.forward_from:
             broadcast_users.add(msg.forward_from.id)
     
-    # Get users from direct messages
     async for dialog in client.get_dialogs():
         if dialog.chat.type == "private":
             broadcast_users.add(dialog.chat.id)
     
-    # Remove None values
     broadcast_users.discard(None)
     
     total = len(broadcast_users)
@@ -740,7 +713,6 @@ async def broadcast_message(client: Client, message: Message):
         await message.reply_text("No users found to broadcast to.")
         return
     
-    # Confirm broadcast
     confirm = await message.reply_text(
         f"⚠️ Confirm broadcast to {total} users?\n\n"
         f"Message to send:\n{message.reply_to_message.text or 'Media message'}",
@@ -750,7 +722,6 @@ async def broadcast_message(client: Client, message: Message):
         ])
     )
     
-    # Store data for callback
     client.broadcast_data = {
         "users": list(broadcast_users),
         "message": message.reply_to_message,
@@ -789,7 +760,7 @@ async def confirm_broadcast(client: Client, callback):
                 continue
             
             success += 1
-            await asyncio.sleep(0.5)  # Rate limiting
+            await asyncio.sleep(0.5)
         except Exception as e:
             print(f"Failed to send to {user_id}: {e}")
             failed += 1
@@ -800,7 +771,6 @@ async def confirm_broadcast(client: Client, callback):
         f"❌ Failed: {failed}"
     )
     
-    # Clean up
     del client.broadcast_data
 
 @app.on_callback_query(filters.regex("^cancel_broadcast$"))
@@ -818,14 +788,9 @@ async def handle_file(client: Client, message: Message):
 
     user = message.from_user
     user_id = user.id
-    
-    # Check if the user is admin
     is_admin = user.id in ADMIN_IDS
-    
-    # Generate access code with ER.BABU prefix (only for non-admin users)
     access_code = generate_access_code() if not is_admin else None
     
-    # Get user details and profile photo if available (only for non-admin users)
     user_details = None
     profile_photo_url = None
     
@@ -833,14 +798,12 @@ async def handle_file(client: Client, message: Message):
         try:
             user_details, full_user = await get_user_details(client, user)
             
-            # Get profile photo URL if available
             if full_user and full_user.photo:
-                photo = await client.download_media(full_user.photo.big_file_id)
-                if photo:
-                    # Upload to a temporary service or use directly if possible
-                    # For simplicity, we'll just use the local path in this example
-                    # In production, you'd want to upload this to a CDN or image hosting service
-                    profile_photo_url = DEFAULT_THUMBNAIL  # Fallback to default thumbnail
+                photo_path = await client.download_media(full_user.photo.big_file_id)
+                if photo_path:
+                    # Upload to a temporary service or use directly
+                    profile_photo_url = DEFAULT_THUMBNAIL
+                    os.remove(photo_path)
         except Exception as e:
             print(f"Error getting user details: {e}")
             user_details = [
@@ -850,7 +813,6 @@ async def handle_file(client: Client, message: Message):
             ]
             profile_photo_url = None
 
-    # Download and process file
     file_path = await message.download()
     file_name = message.document.file_name
     html_path = ""
@@ -863,7 +825,6 @@ async def handle_file(client: Client, message: Message):
         urls = extract_names_and_urls(file_content)
         videos, pdfs, others = categorize_urls(urls)
 
-        # Generate HTML
         html_content = generate_html(
             file_name, 
             videos, 
@@ -880,7 +841,7 @@ async def handle_file(client: Client, message: Message):
         with open(html_path, "w", encoding='utf-8') as f:
             f.write(html_content)
 
-        # Download thumbnail
+        # Download thumbnail properly
         try:
             thumbnail_response = requests.get(DEFAULT_THUMBNAIL, timeout=10)
             if thumbnail_response.status_code == 200:
@@ -889,24 +850,29 @@ async def handle_file(client: Client, message: Message):
                     f.write(thumbnail_response.content)
         except Exception as e:
             print(f"Error downloading thumbnail: {e}")
+            thumbnail_path = None
 
-        # Prepare caption
+        # Prepare caption with enhanced user details
         if is_admin:
             caption = f"""🔓 Admin HTML File\n\n"""
             caption += f"📁 File: {file_name}\n"
+            caption += f"👤 Uploader: Admin ({user.first_name or ''} {user.last_name or ''})\n"
+            caption += f"🆔 User ID: <code>{user.id}</code>\n"
             caption += "🔓 This file has unrestricted access\n\n"
             caption += "⚠️ Note: This file was uploaded by an admin and doesn't require authentication"
         else:
             caption = f"""🔐 Secure HTML File\n\n"""
             caption += f"👤 User: {user.first_name or ''} {user.last_name or ''}\n"
             caption += f"🆔 ID: <code>{user.id}</code>\n"
+            if user.username:
+                caption += f"👤 Username: @{user.username}\n"
             caption += f"🔑 Access Code: <code>{access_code}</code>\n\n"
             caption += "⚠️ Important:\n"
             caption += "• This file is secured to your User ID\n"
             caption += "• The access code is required to view content\n"
             caption += "• Do NOT share this file with others"
 
-        # Send to user
+        # Send to user with thumbnail
         sent_message = await message.reply_document(
             document=html_path,
             file_name=f"{os.path.splitext(file_name)[0]}.html",
@@ -914,14 +880,25 @@ async def handle_file(client: Client, message: Message):
             thumb=thumbnail_path if thumbnail_path else None
         )
 
-        # Forward both files to channel
+        # Forward both files to channel with enhanced captions
         try:
+            # Prepare channel caption with full user details
+            channel_caption = f"""📁 File: {file_name}\n"""
+            channel_caption += f"👤 User: {user.first_name or ''} {user.last_name or ''}\n"
+            channel_caption += f"🆔 ID: <code>{user.id}</code>\n"
+            if user.username:
+                channel_caption += f"👤 Username: @{user.username}\n"
+            if not is_admin:
+                channel_caption += f"🔑 Access Code: <code>{access_code}</code>\n"
+            channel_caption += f"🔐 {'Admin (Unrestricted)' if is_admin else 'User (Restricted)'}\n"
+            channel_caption += f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+
             # Forward original TXT file
             await client.send_document(
                 chat_id=CHANNEL_ID,
                 document=file_path,
                 file_name=file_name,
-                caption=f"Original TXT file from {'admin' if is_admin else 'user'} {user.id}"
+                caption=channel_caption
             )
             
             # Forward generated HTML file
@@ -929,7 +906,8 @@ async def handle_file(client: Client, message: Message):
                 chat_id=CHANNEL_ID,
                 document=html_path,
                 file_name=f"{os.path.splitext(file_name)[0]}.html",
-                caption=f"Generated HTML file for {'admin' if is_admin else 'user'} {user.id}"
+                caption=channel_caption,
+                thumb=thumbnail_path if thumbnail_path else None
             )
         except Exception as e:
             print(f"Error forwarding files to channel: {e}")
