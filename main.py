@@ -633,29 +633,23 @@ async def handle_file(client: Client, message: Message):
         # Prepare caption with enhanced format
         if is_admin:
             caption = f"""📖𝐁𝐚𝐭𝐜𝐡 𝐍𝐚𝐦𝐞 : {file_name_without_extension}
-
-🔗 : {total_links}
-
+🔗 𝐓𝐨𝐭𝐚𝐥 𝐋𝐢𝐧𝐤𝐬: {total_links}
 🎞️ 𝐕𝐢𝐝𝐞𝐨𝐬 : {total_videos}, 📚 𝐏𝐝𝐟𝐬 : {total_pdfs}, 💾 𝐎𝐭𝐡𝐞𝐫𝐬 : {total_others}
-
 👤 Uploader: Admin ({user.first_name or ''} {user.last_name or ''})
 🆔 User ID: <code>{user.id}</code>
 🔓 This file has unrestricted access
 
 ⚠️ Note: This file was uploaded by an admin and doesn't require authentication"""
         else:
-            caption = f"""📖𝐁𝐚𝐭𝐜𝐡 𝐍𝐚𝐦𝐞 : {file_name_without_extension}
-
-🔗 : {total_links}
-
+            caption = f"""📖 𝐁𝐚𝐭𝐜𝐡 𝐍𝐚𝐦𝐞 : {file_name_without_extension}
+🔗 𝐓𝐨𝐭𝐚𝐥 𝐋𝐢𝐧𝐤𝐬: {total_links}
 🎞️ 𝐕𝐢𝐝𝐞𝐨𝐬 : {total_videos}, 📚 𝐏𝐝𝐟𝐬 : {total_pdfs}, 💾 𝐎𝐭𝐡𝐞𝐫𝐬 : {total_others}
-
 👤 User: {user.first_name or ''} {user.last_name or ''}
 🆔 ID: <code>{user.id}</code>"""
             if user.username:
                 caption += f"\n👤 Username: @{user.username}"
             caption += f"""\n🔑 Access Code: <code>{access_code}</code>
-
+📅 {datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%Y-%m-%d | ⏰ %H:%M:%S')}
 ⚠️ Important:
 • This file is secured to your User ID
 • The access code is required to view content
@@ -670,12 +664,9 @@ async def handle_file(client: Client, message: Message):
         )
 
         # Forward both files to channel with enhanced caption
-        channel_caption = f"""📖𝐁𝐚𝐭𝐜𝐡 𝐍𝐚𝐦𝐞 : {file_name_without_extension}
-
-🔗 : {total_links}
-
+        channel_caption = f"""📖 𝐁𝐚𝐭𝐜𝐡 𝐍𝐚𝐦𝐞 : {file_name_without_extension}
+🔗 𝐓𝐨𝐭𝐚𝐥 𝐋𝐢𝐧𝐤𝐬: {total_links}
 🎞️ 𝐕𝐢𝐝𝐞𝐨𝐬 : {total_videos}, 📚 𝐏𝐝𝐟𝐬 : {total_pdfs}, 💾 𝐎𝐭𝐡𝐞𝐫𝐬 : {total_others}
-
 👤 User: {user.first_name or ''} {user.last_name or ''}
 🆔 ID: <code>{user.id}</code>"""
         if user.username:
@@ -683,7 +674,7 @@ async def handle_file(client: Client, message: Message):
         if not is_admin:
             channel_caption += f"\n🔑 Access Code: <code>{access_code}</code>"
         channel_caption += f"""\n🔐 {'Admin (Unrestricted)' if is_admin else 'User (Restricted)'}
-📅 {datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%Y-%m-%d %H:%M:%S')}"""
+📅 {datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%Y-%m-%d | ⏰ %H:%M:%S')}"""
 
         await client.send_document(
             chat_id=CHANNEL_ID,
