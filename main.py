@@ -19,8 +19,8 @@ CHANNEL_ID = "@kuvnypkyjk"
 ADMIN_IDS = [1147534909, 6669182897, 5957208798]
 OWNER_ID = ADMIN_IDS[0]  # First admin is owner
 
-# MongoDB setup (replace with your connection string)
-MONGO_URI = "mongodb://localhost:27017"
+# MongoDB setup
+MONGO_URI = "mongodb+srv://engineersbabuxtract:ETxVh71rTNDpmHaj@cluster0.kofsig4.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 mongo_client = MongoClient(MONGO_URI)
 db = mongo_client["secure_html_bot"]
 users_col = db["users"]
@@ -32,7 +32,7 @@ def generate_user_token(user_id):
     return hashlib.sha256(f"{user_id}{SECRET_KEY}".encode()).hexdigest()
 
 def generate_access_code():
-    return f"ER.BABU{{{''.join(secrets.choice('0123456789') for _ in range(6))}}}"
+    return f"ER.BABU{{{''.join(secrets.choice('0123456789') for _ in range(6)}}}"
 
 def format_phone_number(phone):
     return f"📞 {phone[:4]}****{phone[-3:]}" if phone else "🚫 Hidden"
@@ -595,6 +595,13 @@ async def handle_file(client: Client, message: Message):
 
         urls = extract_names_and_urls(file_content)
         videos, pdfs, others = categorize_urls(urls)
+        
+        # Prepare data for caption
+        total_videos = len(videos)
+        total_pdfs = len(pdfs)
+        total_others = len(others)
+        total_links = total_videos + total_pdfs + total_others
+        file_name_without_extension = os.path.splitext(file_name)[0]
 
         html_content = generate_html(
             file_name, 
@@ -623,25 +630,36 @@ async def handle_file(client: Client, message: Message):
             print(f"Error downloading thumbnail: {e}")
             thumbnail_path = None
 
-        # Prepare caption
+        # Prepare caption with enhanced format
         if is_admin:
-            caption = f"""🔓 Admin HTML File\n\n"""
-            caption += f"📁 File: {file_name}\n"
-            caption += f"👤 Uploader: Admin ({user.first_name or ''} {user.last_name or ''})\n"
-            caption += f"🆔 User ID: <code>{user.id}</code>\n"
-            caption += "🔓 This file has unrestricted access\n\n"
-            caption += "⚠️ Note: This file was uploaded by an admin and doesn't require authentication"
+            caption = f"""📖𝐁𝐚𝐭𝐜𝐡 𝐍𝐚𝐦𝐞 : {file_name_without_extension}
+
+🔗 : {total_links}
+
+🎞️ 𝐕𝐢𝐝𝐞𝐨𝐬 : {total_videos}, 📚 𝐏𝐝𝐟𝐬 : {total_pdfs}, 💾 𝐎𝐭𝐡𝐞𝐫𝐬 : {total_others}
+
+👤 Uploader: Admin ({user.first_name or ''} {user.last_name or ''})
+🆔 User ID: <code>{user.id}</code>
+🔓 This file has unrestricted access
+
+⚠️ Note: This file was uploaded by an admin and doesn't require authentication"""
         else:
-            caption = f"""🔐 Secure HTML File\n\n"""
-            caption += f"👤 User: {user.first_name or ''} {user.last_name or ''}\n"
-            caption += f"🆔 ID: <code>{user.id}</code>\n"
+            caption = f"""📖𝐁𝐚𝐭𝐜𝐡 𝐍𝐚𝐦𝐞 : {file_name_without_extension}
+
+🔗 : {total_links}
+
+🎞️ 𝐕𝐢𝐝𝐞𝐨𝐬 : {total_videos}, 📚 𝐏𝐝𝐟𝐬 : {total_pdfs}, 💾 𝐎𝐭𝐡𝐞𝐫𝐬 : {total_others}
+
+👤 User: {user.first_name or ''} {user.last_name or ''}
+🆔 ID: <code>{user.id}</code>"""
             if user.username:
-                caption += f"👤 Username: @{user.username}\n"
-            caption += f"🔑 Access Code: <code>{access_code}</code>\n\n"
-            caption += "⚠️ Important:\n"
-            caption += "• This file is secured to your User ID\n"
-            caption += "• The access code is required to view content\n"
-            caption += "• Do NOT share this file with others"
+                caption += f"\n👤 Username: @{user.username}"
+            caption += f"""\n🔑 Access Code: <code>{access_code}</code>
+
+⚠️ Important:
+• This file is secured to your User ID
+• The access code is required to view content
+• Do NOT share this file with others"""
 
         # Send to user with thumbnail
         await message.reply_document(
@@ -651,16 +669,21 @@ async def handle_file(client: Client, message: Message):
             thumb=thumbnail_path if thumbnail_path else None
         )
 
-        # Forward both files to channel
-        channel_caption = f"""📁 File: {file_name}\n"""
-        channel_caption += f"👤 User: {user.first_name or ''} {user.last_name or ''}\n"
-        channel_caption += f"🆔 ID: <code>{user.id}</code>\n"
+        # Forward both files to channel with enhanced caption
+        channel_caption = f"""📖𝐁𝐚𝐭𝐜𝐡 𝐍𝐚𝐦𝐞 : {file_name_without_extension}
+
+🔗 : {total_links}
+
+🎞️ 𝐕𝐢𝐝𝐞𝐨𝐬 : {total_videos}, 📚 𝐏𝐝𝐟𝐬 : {total_pdfs}, 💾 𝐎𝐭𝐡𝐞𝐫𝐬 : {total_others}
+
+👤 User: {user.first_name or ''} {user.last_name or ''}
+🆔 ID: <code>{user.id}</code>"""
         if user.username:
-            channel_caption += f"👤 Username: @{user.username}\n"
+            channel_caption += f"\n👤 Username: @{user.username}"
         if not is_admin:
-            channel_caption += f"🔑 Access Code: <code>{access_code}</code>\n"
-        channel_caption += f"🔐 {'Admin (Unrestricted)' if is_admin else 'User (Restricted)'}\n"
-        channel_caption += f"📅 {datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%Y-%m-%d %H:%M:%S')}"
+            channel_caption += f"\n🔑 Access Code: <code>{access_code}</code>"
+        channel_caption += f"""\n🔐 {'Admin (Unrestricted)' if is_admin else 'User (Restricted)'}
+📅 {datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%Y-%m-%d %H:%M:%S')}"""
 
         await client.send_document(
             chat_id=CHANNEL_ID,
