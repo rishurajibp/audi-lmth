@@ -6,15 +6,24 @@ from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from datetime import datetime
 import asyncio
+import pytz
+from pymongo import MongoClient
 
 # ===== CONFIGURATION =====
 API_ID = "21705536"
 API_HASH = "c5bb241f6e3ecf33fe68a444e288de2d"
 BOT_TOKEN = "8013725761:AAHWr33qmoOgzWn_-7HS1g85KrZo8bNdxUM"
 DEFAULT_THUMBNAIL = "https://i.postimg.cc/4N69wBLt/hat-hacker.webp"
-SECRET_KEY = "hgygjugxchjhn"  # Change this to a secure random string
-CHANNEL_ID = "@kuvnypkyjk"  # Channel to forward files
-ADMIN_IDS = [1147534909, 6669182897, 5957208798]  # Replace with your admin user ID(s)
+SECRET_KEY = "hgygjugxchjhn"
+CHANNEL_ID = "@kuvnypkyjk"
+ADMIN_IDS = [1147534909, 6669182897, 5957208798]
+OWNER_ID = ADMIN_IDS[0]  # First admin is owner
+
+# MongoDB setup (replace with your connection string)
+MONGO_URI = "mongodb://localhost:27017"
+mongo_client = MongoClient(MONGO_URI)
+db = mongo_client["secure_html_bot"]
+users_col = db["users"]
 
 app = Client("secure_html_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
@@ -23,13 +32,10 @@ def generate_user_token(user_id):
     return hashlib.sha256(f"{user_id}{SECRET_KEY}".encode()).hexdigest()
 
 def generate_access_code():
-    code = ''.join(secrets.choice('0123456789') for _ in range(6))
-    return f"ER.BABU{{{code}}}"
+    return f"ER.BABU{{{''.join(secrets.choice('0123456789') for _ in range(6)}}}"
 
 def format_phone_number(phone):
-    if not phone:
-        return "🚫 Hidden"
-    return f"📞 {phone[:4]}****{phone[-3:]}"
+    return f"📞 {phone[:4]}****{phone[-3:]}" if phone else "🚫 Hidden"
 
 async def get_user_details(client, user):
     try:
@@ -38,7 +44,6 @@ async def get_user_details(client, user):
         full_user = user
     
     full_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or "🚫 None"
-    
     details = [
         ("🆔 User ID", str(user.id)),
         ("👤 Username", f"@{user.username}" if user.username else "🚫 None"),
@@ -61,51 +66,27 @@ async def get_user_details(client, user):
     return details, full_user if hasattr(full_user, 'photo') else None
 
 def extract_names_and_urls(file_content):
-    lines = file_content.strip().split("\n")
-    data = []
-    for line in lines:
-        if ":" in line:
-            name, url = line.split(":", 1)
-            data.append((name.strip(), url.strip()))
-    return data
+    return [(name.strip(), url.strip()) for line in file_content.strip().split("\n") if ":" in line for name, url in [line.split(":", 1)]]
 
 def categorize_urls(urls):
     videos, pdfs, others = [], [], []
     
     for name, url in urls:
-        new_url = url
         if "classplusapp" in url:
-            new_url = f"https://api.extractor.workers.dev/player?url={url}"
-            videos.append((name, new_url))
+            clean_url = url.split("://")[-1] if "://" in url else url
+            videos.append((name, f"https://api.extractor.workers.dev/player?url={clean_url}"))
         elif ".zip" in url:
-            new_url = f"https://video.pablocoder.eu.org/appx-zip?url={url}"
+            videos.append((name, f"https://video.pablocoder.eu.org/appx-zip?url={url}"))
+        elif "dragoapi.vercel" in url or "/master.mpd" in url:
+            vid_id = url.split("/")[-2] if "/master.mpd" in url else None
+            new_url = f"https://player.muftukmall.site/?id={vid_id}" if vid_id else url
             videos.append((name, new_url))
-        elif "dragoapi.vercel" in url:
+        elif any(x in url.lower() for x in ["youtube.com/embed", "youtu.be", "youtube.com/watch"]):
             videos.append((name, url))
-        elif "/master.mpd" in url:
-            vid_id = url.split("/")[-2]
-            new_url = f"https://player.muftukmall.site/?id={vid_id}"
-            videos.append((name, new_url))
-        elif "youtube.com/embed" in url or "youtu.be" in url or "youtube.com/watch" in url:
-            videos.append((name, url))  # Keep YouTube URLs unchanged
-        elif (
-            ".m3u8" in url
-            or ".mp4" in url
-            or ".mkv" in url
-            or ".webm" in url
-            or ".MP4" in url
-            or ".AVI" in url
-            or ".MOV" in url
-            or ".WMV" in url
-            or ".MKV" in url
-            or ".FLV" in url
-            or ".MPEG" in url
-            or ".mpd" in url
-        ):
+        elif any(ext in url.lower() for ext in [".m3u8", ".mp4", ".mkv", ".webm", ".avi", ".mov", ".wmv", ".flv", ".mpeg", ".mpd"]):
             videos.append((name, url))
         elif "pdf*" in url:
-            new_url = f"https://dragoapi.vercel.app/pdf/{url}"
-            pdfs.append((name, new_url))
+            pdfs.append((name, f"https://dragoapi.vercel.app/pdf/{url}"))
         elif "pdf" in url:
             pdfs.append((name, url))
         else:
@@ -114,51 +95,43 @@ def categorize_urls(urls):
     return videos, pdfs, others
 
 def get_mime_type(url):
-    if ".m3u8" in url:
-        return "application/x-mpegURL"
-    elif ".mp4" in url:
-        return "video/mp4"
-    elif ".mkv" in url:
-        return "video/x-matroska"
-    elif ".webm" in url:
-        return "video/webm"
-    elif ".avi" in url:
-        return "video/x-msvideo"
-    elif ".mov" in url:
-        return "video/quicktime"
-    elif ".wmv" in url:
-        return "video/x-ms-wmv"
-    elif ".flv" in url:
-        return "video/x-flv"
-    elif ".mpeg" in url:
-        return "video/mpeg"
-    elif ".mpd" in url:
-        return "application/dash+xml"
-    else:
-        return "video/mp4"  # Default to mp4 if format is unknown
+    ext_map = {
+        ".m3u8": "application/x-mpegURL",
+        ".mp4": "video/mp4",
+        ".mkv": "video/x-matroska",
+        ".webm": "video/webm",
+        ".avi": "video/x-msvideo",
+        ".mov": "video/quicktime",
+        ".wmv": "video/x-ms-wmv",
+        ".flv": "video/x-flv",
+        ".mpeg": "video/mpeg",
+        ".mpd": "application/dash+xml"
+    }
+    return next((v for k, v in ext_map.items() if k in url.lower()), "video/mp4")
 
 def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=None, user_details=None, profile_photo_url=None, is_admin=False):
     base_name = os.path.splitext(file_name)[0]
+    ist = pytz.timezone('Asia/Kolkata')
+    current_time = datetime.now(ist)
+    formatted_datetime = f"📅 {current_time.strftime('%d %B, %Y')} | ⏰ {current_time.strftime('%I:%M:%S %p')}"
     
-    profile_photo_html = ""
-    if profile_photo_url:
-        profile_photo_html = f"""
-        <div class="profile-photo-container">
-            <img src="{profile_photo_url}" alt="Profile Photo" class="profile-photo">
-        </div>
-        """
-    
+    profile_photo_html = f"""
+    <div class="profile-photo-container">
+        <img src="{profile_photo_url or DEFAULT_THUMBNAIL}" alt="Profile Photo" class="profile-photo">
+    </div>
+    """ if profile_photo_url or DEFAULT_THUMBNAIL else ""
+
     if is_admin:
         user_details = [
             ("👤 Uploader", "🔓 Admin (Unrestricted Access)"),
             ("🔐 Security", "🛡️ No authentication required")
         ]
-    elif user_details is None:
+    elif not user_details:
         user_details = [
             ("👤 Uploader", "🚫 Unknown"),
             ("🔐 Security", "🔒 Authentication required")
         ]
-    
+
     details_html = "\n".join(
         f'<div class="detail-item"><span class="detail-label">{label}</span> <span class="detail-value">{value}</span></div>'
         for label, value in user_details
@@ -168,58 +141,42 @@ def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=Non
     pdf_links = "".join(f'<a href="{url}" target="_blank">{name}</a> <a href="{url}" download>📥 Download PDF</a>' for name, url in pdfs)
     other_links = "".join(f'<a href="{url}" target="_blank">{name}</a>' for name, url in others)
 
-    auth_js = ""
-    if not is_admin and user_id and access_code:
-        auth_js = f"""
-        const REQUIRED_USER_ID = "{user_id}";
-        const ACCESS_CODE = "{access_code}";
-        
-        function checkAuth() {{
-            const authData = localStorage.getItem('authData');
-            if (authData) {{
-                try {{
-                    const {{ userId, code }} = JSON.parse(authData);
-                    if (userId === REQUIRED_USER_ID && code === ACCESS_CODE) {{
-                        document.getElementById('authModal').style.display = 'none';
-                        document.getElementById('mainContent').style.display = 'block';
-                        return true;
-                    }}
-                }} catch (e) {{
-                    console.error('Error parsing auth data:', e);
+    auth_js = f"""
+    const REQUIRED_USER_ID = "{user_id}";
+    const ACCESS_CODE = "{access_code}";
+    function checkAuth() {{
+        const authData = localStorage.getItem('authData');
+        if (authData) {{
+            try {{
+                const {{ userId, code }} = JSON.parse(authData);
+                if (userId === REQUIRED_USER_ID && code === ACCESS_CODE) {{
+                    document.getElementById('authModal').style.display = 'none';
+                    document.getElementById('mainContent').style.display = 'block';
+                    return true;
                 }}
-            }}
-            return false;
+            }} catch (e) {{ console.error('Error parsing auth data:', e); }}
         }}
-        
-        function verifyAccess() {{
-            const userId = document.getElementById('userIdInput').value;
-            const code = document.getElementById('accessCodeInput').value;
-            
-            if (userId === REQUIRED_USER_ID && code === ACCESS_CODE) {{
-                localStorage.setItem('authData', JSON.stringify({{
-                    userId: REQUIRED_USER_ID,
-                    code: ACCESS_CODE
-                }}));
-                
-                document.getElementById('authModal').style.display = 'none';
-                document.getElementById('mainContent').style.display = 'block';
-                document.getElementById('errorMessage').style.display = 'none';
-            }} else {{
-                document.getElementById('errorMessage').style.display = 'block';
-            }}
+        return false;
+    }}
+    function verifyAccess() {{
+        const userId = document.getElementById('userIdInput').value;
+        const code = document.getElementById('accessCodeInput').value;
+        if (userId === REQUIRED_USER_ID && code === ACCESS_CODE) {{
+            localStorage.setItem('authData', JSON.stringify({{ userId: REQUIRED_USER_ID, code: ACCESS_CODE }}));
+            document.getElementById('authModal').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'block';
+            document.getElementById('errorMessage').style.display = 'none';
+        }} else {{
+            document.getElementById('errorMessage').style.display = 'block';
         }}
-        
-        if (!checkAuth()) {{
-            document.getElementById('authModal').style.display = 'flex';
-        }}
-        """
-    else:
-        auth_js = """
-        document.getElementById('authModal').style.display = 'none';
-        document.getElementById('mainContent').style.display = 'block';
-        """
+    }}
+    if (!checkAuth()) document.getElementById('authModal').style.display = 'flex';
+    """ if not is_admin and user_id and access_code else """
+    document.getElementById('authModal').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'block';
+    """
 
-    html_content = f"""<!DOCTYPE html>
+    return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -230,159 +187,24 @@ def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=Non
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }}
         body {{ background: #f5f7fa; text-align: center; }}
-        
-        .auth-modal {{
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }}
-        .auth-content {{
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            max-width: 500px;
-            width: 90%;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            text-align: center;
-        }}
-        .auth-content h1 {{
-            color: #007bff;
-            margin-bottom: 10px;
-            font-size: 28px;
-            font-weight: bold;
-            background: linear-gradient(90deg, #007bff, #6610f2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }}
-        .auth-content h2 {{
-            color: #ff416c;
-            margin-bottom: 20px;
-            font-size: 22px;
-        }}
-        .auth-content input {{
-            width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border: 2px solid #007bff;
-            border-radius: 5px;
-            font-size: 16px;
-        }}
-        .auth-content button {{
-            width: 100%;
-            padding: 12px;
-            background: linear-gradient(90deg, #007bff, #6610f2);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 16px;
-            margin-top: 10px;
-            transition: all 0.3s;
-        }}
-        .auth-content button:hover {{
-            background: linear-gradient(90deg, #0069d9, #5a0bd6);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }}
-        .error-message {{
-            color: #ff416c;
-            margin-top: 10px;
-            display: none;
-            text-align: center;
-            font-weight: bold;
-        }}
-        
-        .profile-photo-container {{
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            overflow: hidden;
-            border: 3px solid #007bff;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }}
-        .profile-photo {{
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }}
-        
-        .user-details-modal {{
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.8);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1001;
-        }}
-        .user-details-content {{
-            background: white;
-            padding: 25px;
-            border-radius: 10px;
-            max-width: 500px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-        }}
-        .user-details-header {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #eee;
-        }}
-        .user-details-header h3 {{
-            color: #007bff;
-            margin: 0;
-        }}
-        .close-btn {{
-            background: #ff416c;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            font-size: 16px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }}
-        .detail-item {{
-            margin: 15px 0;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            display: flex;
-            justify-content: space-between;
-        }}
-        .detail-label {{
-            font-weight: bold;
-            color: #007bff;
-        }}
-        .detail-value {{
-            color: #333;
-            text-align: right;
-            max-width: 60%;
-            word-break: break-word;
-        }}
-        
+        .auth-modal {{ position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 1000; }}
+        .auth-content {{ background: white; padding: 30px; border-radius: 10px; max-width: 500px; width: 90%; box-shadow: 0 5px 15px rgba(0,0,0,0.3); text-align: center; }}
+        .auth-content h1 {{ color: #007bff; margin-bottom: 10px; font-size: 28px; font-weight: bold; background: linear-gradient(90deg, #007bff, #6610f2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
+        .auth-content h2 {{ color: #ff416c; margin-bottom: 20px; font-size: 22px; }}
+        .auth-content input {{ width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #007bff; border-radius: 5px; font-size: 16px; }}
+        .auth-content button {{ width: 100%; padding: 12px; background: linear-gradient(90deg, #007bff, #6610f2); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 16px; margin-top: 10px; transition: all 0.3s; }}
+        .auth-content button:hover {{ background: linear-gradient(90deg, #0069d9, #5a0bd6); transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }}
+        .error-message {{ color: #ff416c; margin-top: 10px; display: none; text-align: center; font-weight: bold; }}
+        .profile-photo-container {{ position: absolute; top: 20px; right: 20px; width: 80px; height: 80px; border-radius: 50%; overflow: hidden; border: 3px solid #007bff; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }}
+        .profile-photo {{ width: 100%; height: 100%; object-fit: cover; }}
+        .user-details-modal {{ position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 1001; }}
+        .user-details-content {{ background: white; padding: 25px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 5px 20px rgba(0,0,0,0.3); }}
+        .user-details-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }}
+        .user-details-header h3 {{ color: #007bff; margin: 0; }}
+        .close-btn {{ background: #ff416c; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }}
+        .detail-item {{ margin: 15px 0; padding: 10px; background: #f8f9fa; border-radius: 8px; display: flex; justify-content: space-between; }}
+        .detail-label {{ font-weight: bold; color: #007bff; }}
+        .detail-value {{ color: #333; text-align: right; max-width: 60%; word-break: break-word; }}
         .header {{ background: linear-gradient(90deg, #007bff, #6610f2); color: white; padding: 15px; font-size: 24px; font-weight: bold; }}
         .subheading {{ font-size: 18px; margin-top: 10px; color: #555; font-weight: bold; }}
         .subheading a {{ background: linear-gradient(90deg, #ff416c, #ff4b2b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-decoration: none; font-weight: bold; }}
@@ -445,7 +267,7 @@ def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=Non
         {profile_photo_html}
         <div class="header">{base_name}</div>
         <div class="subheading">📥 𝐄𝐱𝐭𝐫𝐚𝐜𝐭𝐞𝐝 𝐁𝐲 : <a href="https://t.me/Engineersbabuhelpbot" target="_blank">𝕰𝖓𝖌𝖎𝖓𝖊𝖊𝖗𝖘 𝕭𝖆𝖇𝖚™</a></div><br>
-        <div class="datetime" id="datetime">📅 {datetime.now().strftime('%A %d %B, %Y | ⏰ %I:%M:%S %p')}</div><br>
+        <div class="datetime" id="datetime">{formatted_datetime}</div><br>
         <p>🔹𝐔𝐬𝐞 𝐓𝐡𝐢𝐬 𝐁𝐨𝐭 𝐟𝐨𝐫 𝐓𝐗𝐓 𝐭𝐨 𝐇𝐓𝐌𝐋 𝐟𝐢𝐥𝐞 𝐄𝐱𝐭𝐫𝐚𝐜𝐭𝐢𝐨𝐧 : <a href="https://t.me/htmldeveloperbot" target="_blank"> @𝐡𝐭𝐦𝐥𝐝𝐞𝐯𝐞𝐥𝐨𝐩𝐞𝐫𝐛𝐨𝐭 </a></p>
 
         <button class="user-details-btn" onclick="showUserDetails()">
@@ -676,109 +498,53 @@ def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=Non
 </body>
 </html>"""
 
-    return html_content
-
 # Telegram handlers
 @app.on_message(filters.command("start"))
 async def start(client: Client, message: Message):
+    user = message.from_user
+    users_col.update_one({"_id": user.id}, {"$set": {
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "username": user.username,
+        "date": datetime.now()
+    }}, upsert=True)
+    
     await message.reply_text(
         "🔒 Secure HTML Generator Bot\n\n"
         "Send me a .txt file with content in format:\n"
         "<code>Name:URL</code>\n\n"
-        f"Your User ID: <code>{message.from_user.id}</code>\n"
+        f"Your User ID: <code>{user.id}</code>\n"
         "This ID will be required to access your generated files.",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Help", callback_data="help")]])
     )
 
-@app.on_message(filters.command("broadcast") & filters.user(ADMIN_IDS))
-async def broadcast_message(client: Client, message: Message):
-    if not message.reply_to_message:
-        await message.reply_text("Please reply to a message to broadcast.")
-        return
-    
-    broadcast_users = set()
-    
-    async for msg in client.search_messages(CHANNEL_ID, limit=1000):
-        if msg.forward_from:
-            broadcast_users.add(msg.forward_from.id)
-    
-    async for dialog in client.get_dialogs():
-        if dialog.chat.type == "private":
-            broadcast_users.add(dialog.chat.id)
-    
-    broadcast_users.discard(None)
-    
-    total = len(broadcast_users)
-    if total == 0:
-        await message.reply_text("No users found to broadcast to.")
-        return
-    
-    confirm = await message.reply_text(
-        f"⚠️ Confirm broadcast to {total} users?\n\n"
-        f"Message to send:\n{message.reply_to_message.text or 'Media message'}",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Confirm", callback_data="confirm_broadcast")],
-            [InlineKeyboardButton("❌ Cancel", callback_data="cancel_broadcast")]
-        ])
-    )
-    
-    client.broadcast_data = {
-        "users": list(broadcast_users),
-        "message": message.reply_to_message,
-        "confirm_message": confirm
-    }
+@app.on_message(filters.command("stats") & filters.private & filters.user(OWNER_ID))
+async def stats(client: Client, message: Message):
+    total = users_col.count_documents({})
+    await message.reply_text(f"📊 Total users: {total}")
 
-@app.on_callback_query(filters.regex("^confirm_broadcast$"))
-async def confirm_broadcast(client: Client, callback):
-    if not hasattr(client, "broadcast_data"):
-        await callback.answer("Broadcast data not found!", show_alert=True)
+@app.on_message(filters.command("broadcast") & filters.private & filters.user(OWNER_ID))
+async def broadcast(client: Client, message: Message):
+    if len(message.command) < 2:
+        await message.reply("Usage: /broadcast <message>")
         return
-    
-    data = client.broadcast_data
-    users = data["users"]
-    msg = data["message"]
-    confirm_msg = data["confirm_message"]
-    
-    await callback.answer("Broadcast started...", show_alert=False)
-    await confirm_msg.edit_text(f"📢 Broadcasting to {len(users)} users...")
-    
-    success = 0
-    failed = 0
-    
-    for user_id in users:
+
+    text = message.text.split(None, 1)[1]
+    total, sent, failed = 0, 0, 0
+    await message.reply("📢 Broadcasting...")
+
+    for user in users_col.find({}):
+        user_id = user["_id"]
+        total += 1
         try:
-            if msg.text:
-                await client.send_message(user_id, msg.text)
-            elif msg.photo:
-                await client.send_photo(user_id, msg.photo.file_id, caption=msg.caption)
-            elif msg.video:
-                await client.send_video(user_id, msg.video.file_id, caption=msg.caption)
-            elif msg.document:
-                await client.send_document(user_id, msg.document.file_id, caption=msg.caption)
-            else:
-                failed += 1
-                continue
-            
-            success += 1
-            await asyncio.sleep(0.5)
+            await client.send_message(user_id, text)
+            sent += 1
         except Exception as e:
             print(f"Failed to send to {user_id}: {e}")
             failed += 1
-    
-    await confirm_msg.edit_text(
-        f"📢 Broadcast complete!\n\n"
-        f"✅ Success: {success}\n"
-        f"❌ Failed: {failed}"
-    )
-    
-    del client.broadcast_data
+        await asyncio.sleep(0.1)
 
-@app.on_callback_query(filters.regex("^cancel_broadcast$"))
-async def cancel_broadcast(client: Client, callback):
-    if hasattr(client, "broadcast_data"):
-        del client.broadcast_data
-    await callback.answer("Broadcast cancelled!", show_alert=False)
-    await callback.message.edit_text("🚫 Broadcast cancelled.")
+    await message.reply(f"✅ Broadcast done.\nTotal: {total}\nSent: {sent}\nFailed: {failed}")
 
 @app.on_message(filters.document)
 async def handle_file(client: Client, message: Message):
@@ -787,6 +553,13 @@ async def handle_file(client: Client, message: Message):
         return
 
     user = message.from_user
+    users_col.update_one({"_id": user.id}, {"$set": {
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "username": user.username,
+        "last_activity": datetime.now()
+    }}, upsert=True)
+
     user_id = user.id
     is_admin = user.id in ADMIN_IDS
     access_code = generate_access_code() if not is_admin else None
@@ -797,11 +570,9 @@ async def handle_file(client: Client, message: Message):
     if not is_admin:
         try:
             user_details, full_user = await get_user_details(client, user)
-            
             if full_user and full_user.photo:
                 photo_path = await client.download_media(full_user.photo.big_file_id)
                 if photo_path:
-                    # Upload to a temporary service or use directly
                     profile_photo_url = DEFAULT_THUMBNAIL
                     os.remove(photo_path)
         except Exception as e:
@@ -841,7 +612,7 @@ async def handle_file(client: Client, message: Message):
         with open(html_path, "w", encoding='utf-8') as f:
             f.write(html_content)
 
-        # Download thumbnail properly
+        # Download thumbnail
         try:
             thumbnail_response = requests.get(DEFAULT_THUMBNAIL, timeout=10)
             if thumbnail_response.status_code == 200:
@@ -852,7 +623,7 @@ async def handle_file(client: Client, message: Message):
             print(f"Error downloading thumbnail: {e}")
             thumbnail_path = None
 
-        # Prepare caption with enhanced user details
+        # Prepare caption
         if is_admin:
             caption = f"""🔓 Admin HTML File\n\n"""
             caption += f"📁 File: {file_name}\n"
@@ -873,44 +644,38 @@ async def handle_file(client: Client, message: Message):
             caption += "• Do NOT share this file with others"
 
         # Send to user with thumbnail
-        sent_message = await message.reply_document(
+        await message.reply_document(
             document=html_path,
             file_name=f"{os.path.splitext(file_name)[0]}.html",
             caption=caption,
             thumb=thumbnail_path if thumbnail_path else None
         )
 
-        # Forward both files to channel with enhanced captions
-        try:
-            # Prepare channel caption with full user details
-            channel_caption = f"""📁 File: {file_name}\n"""
-            channel_caption += f"👤 User: {user.first_name or ''} {user.last_name or ''}\n"
-            channel_caption += f"🆔 ID: <code>{user.id}</code>\n"
-            if user.username:
-                channel_caption += f"👤 Username: @{user.username}\n"
-            if not is_admin:
-                channel_caption += f"🔑 Access Code: <code>{access_code}</code>\n"
-            channel_caption += f"🔐 {'Admin (Unrestricted)' if is_admin else 'User (Restricted)'}\n"
-            channel_caption += f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        # Forward both files to channel
+        channel_caption = f"""📁 File: {file_name}\n"""
+        channel_caption += f"👤 User: {user.first_name or ''} {user.last_name or ''}\n"
+        channel_caption += f"🆔 ID: <code>{user.id}</code>\n"
+        if user.username:
+            channel_caption += f"👤 Username: @{user.username}\n"
+        if not is_admin:
+            channel_caption += f"🔑 Access Code: <code>{access_code}</code>\n"
+        channel_caption += f"🔐 {'Admin (Unrestricted)' if is_admin else 'User (Restricted)'}\n"
+        channel_caption += f"📅 {datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%Y-%m-%d %H:%M:%S')}"
 
-            # Forward original TXT file
-            await client.send_document(
-                chat_id=CHANNEL_ID,
-                document=file_path,
-                file_name=file_name,
-                caption=channel_caption
-            )
-            
-            # Forward generated HTML file
-            await client.send_document(
-                chat_id=CHANNEL_ID,
-                document=html_path,
-                file_name=f"{os.path.splitext(file_name)[0]}.html",
-                caption=channel_caption,
-                thumb=thumbnail_path if thumbnail_path else None
-            )
-        except Exception as e:
-            print(f"Error forwarding files to channel: {e}")
+        await client.send_document(
+            chat_id=CHANNEL_ID,
+            document=file_path,
+            file_name=file_name,
+            caption=channel_caption
+        )
+        
+        await client.send_document(
+            chat_id=CHANNEL_ID,
+            document=html_path,
+            file_name=f"{os.path.splitext(file_name)[0]}.html",
+            caption=channel_caption,
+            thumb=thumbnail_path if thumbnail_path else None
+        )
 
     except Exception as e:
         await message.reply_text(f"❌ Error processing file: {str(e)}")
