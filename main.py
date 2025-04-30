@@ -32,7 +32,7 @@ def generate_user_token(user_id):
     return hashlib.sha256(f"{user_id}{SECRET_KEY}".encode()).hexdigest()
 
 def generate_access_code():
-    return f"ER.BABU{{{''.join(secrets.choice('0123456789') for _ in range(6)}}}"
+    return f"ER.BABU{{{''.join(secrets.choice('0123456789') for _ in range(6))}}}"
 
 def format_phone_number(phone):
     return f"📞 {phone[:4]}****{phone[-3:]}" if phone else "🚫 Hidden"
