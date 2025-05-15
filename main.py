@@ -744,7 +744,7 @@ async def handle_file(client: Client, message: Message):
 📅 {datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%Y-%m-%d | ⏰ %H:%M:%S')}"""
 
         await client.send_document(
-            chat_id=CHANNEL_ID,
+            chat_id=CHANNEL_IDI,
             document=file_path,
             file_name=file_name,
             caption=channel_caption
