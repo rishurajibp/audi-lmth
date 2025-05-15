@@ -8,6 +8,8 @@ from datetime import datetime
 import asyncio
 import pytz
 from pymongo import MongoClient
+import random
+from functools import wraps
 
 # ===== CONFIGURATION =====
 API_ID = "21705536"
@@ -27,7 +29,7 @@ users_col = db["users"]
 
 app = Client("secure_html_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-# Utility functions
+# ===== UTILITY FUNCTIONS =====
 def generate_user_token(user_id):
     return hashlib.sha256(f"{user_id}{SECRET_KEY}".encode()).hexdigest()
 
@@ -498,9 +500,45 @@ def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=Non
 </body>
 </html>"""
 
-# Telegram handlers
-@app.on_message(filters.command("start"))
-async def start(client: Client, message: Message):
+# ===== CHANNEL MEMBERSHIP FUNCTIONS =====
+def join_user():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("📢 Join Channel", url=f"https://t.me/{CHANNEL_ID.strip('@')}")]
+    ])
+
+async def check_channel_membership(client: Client, message: Message):
+    try:
+        member = await client.get_chat_member(CHANNEL_ID, message.chat.id)
+        if member.status in ["left", "kicked"]:
+            return False
+    except Exception as e:
+        print(f"Error checking channel membership: {e}")
+        return False
+    return True
+
+def require_channel_join(func):
+    @wraps(func)
+    async def wrapper(client: Client, message: Message):
+        if not await check_channel_membership(client, message):
+            await message.reply_text(
+                "<b><u>Please join our channel to use this feature.</u></b>",
+                reply_markup=join_user()
+            )
+            return
+        return await func(client, message)
+    return wrapper
+
+# ===== RANDOM WELCOME PHOTOS =====
+async def send_random_photo():
+    photos = [
+        "https://te.legra.ph/file/5abf3b674b62b824e57f2.jpg",
+        "https://te.legra.ph/file/444b4ecf3656b9f7cb6d3.jpg"
+    ]
+    return random.choice(photos)
+
+# ===== COMMAND HANDLERS =====
+@app.on_message(filters.command("start") & filters.private)
+async def start_cmd(client: Client, message: Message):
     user = message.from_user
     users_col.update_one({"_id": user.id}, {"$set": {
         "first_name": user.first_name,
@@ -509,14 +547,46 @@ async def start(client: Client, message: Message):
         "date": datetime.now()
     }}, upsert=True)
     
-    await message.reply_text(
-        "🔒 Secure HTML Generator Bot\n\n"
-        "Send me a .txt file with content in format:\n"
-        "<code>Name:URL</code>\n\n"
-        f"Your User ID: <code>{user.id}</code>\n"
-        "This ID will be required to access your generated files.",
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Help", callback_data="help")]])
-    )
+    is_member = await check_channel_membership(client, message)
+    
+    try:
+        photo = await send_random_photo()
+        caption = f"👋 Hello {user.mention if user else 'User'},\n\n"
+        
+        if is_member:
+            caption += (
+                "Welcome to the Secure HTML Generator Bot! You're successfully verified ✅.\n\n"
+                "🔒 Send me a .txt file with content in format:\n"
+                "<code>Name:URL</code>\n\n"
+                f"Your User ID: <code>{user.id}</code>\n"
+                "This ID will be required to access your generated files."
+            )
+        else:
+            caption += "Welcome to the Secure HTML Generator Bot! Please join our channel to use all features."
+        
+        await client.send_photo(
+            chat_id=message.chat.id,
+            photo=photo,
+            caption=caption,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📢 Join Channel", url=f"https://t.me/{CHANNEL_ID.strip('@')}")],
+                [InlineKeyboardButton("Help", callback_data="help")]
+            ])
+        )
+    except Exception as e:
+        print(f"Error sending welcome photo: {e}")
+        await message.reply_text(
+            f"👋 Welcome {user.mention if user else 'User'}!\n\n"
+            "🔒 Secure HTML Generator Bot\n\n"
+            "Send me a .txt file with content in format:\n"
+            "<code>Name:URL</code>\n\n"
+            f"Your User ID: <code>{user.id}</code>\n"
+            "This ID will be required to access your generated files.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📢 Join Channel", url=f"https://t.me/{CHANNEL_ID.strip('@')}")],
+                [InlineKeyboardButton("Help", callback_data="help")]
+            ])
+        )
 
 @app.on_message(filters.command("stats") & filters.private & filters.user(OWNER_ID))
 async def stats(client: Client, message: Message):
@@ -547,6 +617,7 @@ async def broadcast(client: Client, message: Message):
     await message.reply(f"✅ Broadcast done.\nTotal: {total}\nSent: {sent}\nFailed: {failed}")
 
 @app.on_message(filters.document)
+@require_channel_join
 async def handle_file(client: Client, message: Message):
     if not message.document.file_name.endswith(".txt"):
         await message.reply_text("Please upload a .txt file.")
@@ -596,7 +667,6 @@ async def handle_file(client: Client, message: Message):
         urls = extract_names_and_urls(file_content)
         videos, pdfs, others = categorize_urls(urls)
         
-        # Prepare data for caption
         total_videos = len(videos)
         total_pdfs = len(pdfs)
         total_others = len(others)
@@ -619,7 +689,6 @@ async def handle_file(client: Client, message: Message):
         with open(html_path, "w", encoding='utf-8') as f:
             f.write(html_content)
 
-        # Download thumbnail
         try:
             thumbnail_response = requests.get(DEFAULT_THUMBNAIL, timeout=10)
             if thumbnail_response.status_code == 200:
@@ -630,7 +699,6 @@ async def handle_file(client: Client, message: Message):
             print(f"Error downloading thumbnail: {e}")
             thumbnail_path = None
 
-        # Prepare caption with enhanced format
         if is_admin:
             caption = f"""📖𝐁𝐚𝐭𝐜𝐡 𝐍𝐚𝐦𝐞 : {file_name_without_extension}
 🔗 𝐓𝐨𝐭𝐚𝐥 𝐋𝐢𝐧𝐤𝐬: {total_links}
@@ -655,7 +723,6 @@ async def handle_file(client: Client, message: Message):
 • The access code is required to view content
 • Do NOT share this file with others"""
 
-        # Send to user with thumbnail
         await message.reply_document(
             document=html_path,
             file_name=f"{os.path.splitext(file_name)[0]}.html",
@@ -663,7 +730,6 @@ async def handle_file(client: Client, message: Message):
             thumb=thumbnail_path if thumbnail_path else None
         )
 
-        # Forward both files to channel with enhanced caption
         channel_caption = f"""📖 𝐁𝐚𝐭𝐜𝐡 𝐍𝐚𝐦𝐞 : {file_name_without_extension}
 🔗 𝐓𝐨𝐭𝐚𝐥 𝐋𝐢𝐧𝐤𝐬: {total_links}
 🎞️ 𝐕𝐢𝐝𝐞𝐨𝐬 : {total_videos}, 📚 𝐏𝐝𝐟𝐬 : {total_pdfs}, 💾 𝐎𝐭𝐡𝐞𝐫𝐬 : {total_others}
@@ -694,7 +760,6 @@ async def handle_file(client: Client, message: Message):
     except Exception as e:
         await message.reply_text(f"❌ Error processing file: {str(e)}")
     finally:
-        # Cleanup
         if os.path.exists(file_path):
             os.remove(file_path)
         if html_path and os.path.exists(html_path):
@@ -725,14 +790,37 @@ async def help_handler(client, callback):
 @app.on_callback_query(filters.regex("^back$"))
 async def back_handler(client, callback):
     await callback.answer()
-    await callback.message.edit_text(
-        "🔒 Secure HTML Generator Bot\n\n"
-        "Send me a .txt file with content in format:\n"
-        "<code>Name:URL</code>\n\n"
-        f"Your User ID: <code>{callback.from_user.id}</code>\n"
-        "This ID will be required to access your generated files.",
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Help", callback_data="help")]])
-    )
+    user = callback.from_user
+    try:
+        photo = await send_random_photo()
+        await callback.message.reply_photo(
+            photo=photo,
+            caption=f"👋 Welcome back {user.mention if user else 'User'}!\n\n"
+                    "🔒 Secure HTML Generator Bot\n\n"
+                    "Send me a .txt file with content in format:\n"
+                    "<code>Name:URL</code>\n\n"
+                    f"Your User ID: <code>{user.id}</code>\n"
+                    "This ID will be required to access your generated files.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📢 Join Channel", url=f"https://t.me/{CHANNEL_ID.strip('@')}")],
+                [InlineKeyboardButton("Help", callback_data="help")]
+            ])
+        )
+        await callback.message.delete()
+    except Exception as e:
+        print(f"Error sending welcome photo: {e}")
+        await callback.message.edit_text(
+            f"👋 Welcome back {user.mention if user else 'User'}!\n\n"
+            "🔒 Secure HTML Generator Bot\n\n"
+            "Send me a .txt file with content in format:\n"
+            "<code>Name:URL</code>\n\n"
+            f"Your User ID: <code>{user.id}</code>\n"
+            "This ID will be required to access your generated files.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📢 Join Channel", url=f"https://t.me/{CHANNEL_ID.strip('@')}")],
+                [InlineKeyboardButton("Help", callback_data="help")]
+            ])
+        )
 
 if __name__ == "__main__":
     print("✅ Secure HTML Bot is running...")
