@@ -17,7 +17,8 @@ API_HASH = "c5bb241f6e3ecf33fe68a444e288de2d"
 BOT_TOKEN = "8013725761:AAHWr33qmoOgzWn_-7HS1g85KrZo8bNdxUM"
 DEFAULT_THUMBNAIL = "https://i.postimg.cc/4N69wBLt/hat-hacker.webp"
 SECRET_KEY = "hgygjugxchjhn"
-CHANNEL_ID = "@kuvnypkyjk"
+CHANNEL_IDI = "@kuvnypkyjk"
+CHANNEL_ID = "@Engineersbabuupdates"
 ADMIN_IDS = [1147534909, 6669182897, 5957208798]
 OWNER_ID = ADMIN_IDS[0]  # First admin is owner
 
@@ -750,7 +751,7 @@ async def handle_file(client: Client, message: Message):
         )
         
         await client.send_document(
-            chat_id=CHANNEL_ID,
+            chat_id=CHANNEL_IDI,
             document=html_path,
             file_name=f"{os.path.splitext(file_name)[0]}.html",
             caption=channel_caption,
