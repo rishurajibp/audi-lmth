@@ -1,4 +1,4 @@
-timport os
+import os
 import requests
 import hashlib
 import secrets
