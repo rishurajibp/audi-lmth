@@ -1,4 +1,4 @@
-import os
+timport os
 import requests
 import hashlib
 import secrets
@@ -18,7 +18,7 @@ BOT_TOKEN = "8013725761:AAHWr33qmoOgzWn_-7HS1g85KrZo8bNdxUM"
 DEFAULT_THUMBNAIL = "https://i.postimg.cc/4N69wBLt/hat-hacker.webp"
 SECRET_KEY = "hgygjugxchjhn"
 CHANNEL_IDI = "@kuvnypkyjk"
-CHANNEL_ID = "@Engineersbabuupdates"
+CHANNEL_ID = "@Engineersbabuupdatesnew"
 ADMIN_IDS = [1147534909, 6669182897, 5957208798]
 OWNER_ID = ADMIN_IDS[0]  # First admin is owner
 
