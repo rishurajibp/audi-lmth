@@ -18,8 +18,8 @@ BOT_TOKEN = "8013725761:AAHWu34sYEwE3GDUmwOPYMOQGg93rgQA9dk"
 DEFAULT_THUMBNAIL = "https://i.postimg.cc/4N69wBLt/hat-hacker.webp"
 SECRET_KEY = "hgygjugxchjhn"
 CHANNEL_IDI = "@kuvnypkyjk"
-CHANNEL_ID = "@Engineersbabuupdatesnew"
-ADMIN_IDS = [1147534909, 6669182897, 5957208798]
+CHANNEL_ID = "@Engineersbabuupdates1"
+ADMIN_IDS = [1147534909, 6669182897]
 OWNER_ID = ADMIN_IDS[0]  # First admin is owner
 
 # MongoDB setup
