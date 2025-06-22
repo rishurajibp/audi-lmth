@@ -14,12 +14,12 @@ from functools import wraps
 # ===== CONFIGURATION =====
 API_ID = "21705536"
 API_HASH = "c5bb241f6e3ecf33fe68a444e288de2d"
-BOT_TOKEN = "8013725761:AAHWu34sYEwE3GDUmwOPYMOQGg93rgQA9dk"
+BOT_TOKEN = "7601635113:AAGbMk_SNWXrvsAk-KyEVd-y7c-xAR4bnIw"
 DEFAULT_THUMBNAIL = "https://i.postimg.cc/4N69wBLt/hat-hacker.webp"
 SECRET_KEY = "hgygjugxchjhn"
 CHANNEL_IDI = "@kuvnypkyjk"
-CHANNEL_ID = "@Engineersbabuupdatesnew"
-ADMIN_IDS = [1147534909, 6669182897]
+CHANNEL_ID = "@Engineers_babus"
+ADMIN_IDS = [7809571505, 6669182897]
 OWNER_ID = ADMIN_IDS[0]  # First admin is owner
 
 # MongoDB setup
