@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 # ===== CONFIGURATION =====
 API_ID = os.environ.get("API_ID", "21705536")
 API_HASH = os.environ.get("API_HASH", "c5bb241f6e3ecf33fe68a444e288de2d")
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "7601635113:AAGbMk_SNWXrvsAk-KyEVd-y7c-xAR4bnIw")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "7601635113:AAG_bPYt03h1AdHcz-bMnPdnvFW9GHgC5g8")
 DEFAULT_THUMBNAIL = os.environ.get("DEFAULT_THUMBNAIL", "https://i.postimg.cc/4N69wBLt/hat-hacker.webp")
 SECRET_KEY = os.environ.get("SECRET_KEY", "hgygjugxchjhn")
 CHANNEL_IDI = os.environ.get("CHANNEL_IDI", "@kuvnypkyjk")
@@ -724,3 +724,4 @@ def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=Non
         // Auto-logout after 24 hours
         setInterval(() => {{
             const authData = localStorage.getItem
+
