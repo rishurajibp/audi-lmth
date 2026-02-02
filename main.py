@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 # ===== CONFIGURATION =====
 API_ID = os.environ.get("API_ID", "21705536")
 API_HASH = os.environ.get("API_HASH", "c5bb241f6e3ecf33fe68a444e288de2d")
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "7601635113:AAG_bPYt03h1AdHcz-bMnPdnvFW9GHgC5g8")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "7601635113:AAHjmE2yjru1sIIbAW6g56-sIc30cv4Tsm8")
 DEFAULT_THUMBNAIL = os.environ.get("DEFAULT_THUMBNAIL", "https://i.postimg.cc/4N69wBLt/hat-hacker.webp")
 SECRET_KEY = os.environ.get("SECRET_KEY", "hgygjugxchjhn")
 CHANNEL_IDI = os.environ.get("CHANNEL_IDI", "@kuvnypkyjk")
@@ -358,3 +358,4 @@ def generate_html(file_name, videos, pdfs, others, user_id=None, access_code=Non
         .profile-photo {{ width: 100%; height: 100%; object-fit: cover; }}
         .main-container {{ background: white; border-radius: 20px; padding: 30px; margin-top: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.1); position: relative; }}
         .header {{ background: linear-gradient(90deg, #667eea, #764ba2); color: white; padding
+
